@@ -155,18 +155,11 @@ class Course_Purchase_Query {
      * Registriert Query Controls für Elementor Widgets
      */
     public static function register_controls( $widget ) {
-        $widget->start_controls_section(
-            'section_course_purchase_filter',
-            [
-                'label' => esc_html__( 'LearnDash Kurs-Filter', 'soulsites-learndash' ),
-                'tab' => \Elementor\Controls_Manager::TAB_CONTENT,
-            ]
-        );
-
+        // Füge Control zur bestehenden Query Sektion hinzu
         $widget->add_control(
             'course_purchase_filter',
             [
-                'label' => esc_html__( 'Kurse nach Kaufstatus filtern', 'soulsites-learndash' ),
+                'label' => esc_html__( 'LearnDash: Kurse nach Kaufstatus filtern', 'soulsites-learndash' ),
                 'type' => \Elementor\Controls_Manager::SELECT,
                 'default' => '',
                 'options' => [
@@ -175,9 +168,8 @@ class Course_Purchase_Query {
                     'not_purchased' => esc_html__( 'Nur nicht gekaufte Kurse', 'soulsites-learndash' ),
                 ],
                 'description' => esc_html__( 'Filtert die angezeigten LearnDash Kurse basierend auf dem Kaufstatus des aktuellen Benutzers.', 'soulsites-learndash' ),
+                'separator' => 'before',
             ]
         );
-
-        $widget->end_controls_section();
     }
 }
