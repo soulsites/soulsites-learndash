@@ -83,6 +83,9 @@ final class SoulSites_LearnDash_Elementor {
         // Register Elementor components
         add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ] );
         add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ] );
+
+        // Initialize Query Filters
+        $this->init_query_filters();
     }
 
     /**
@@ -101,6 +104,9 @@ final class SoulSites_LearnDash_Elementor {
         require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-enrollment-status.php';
         require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-progress.php';
         require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-completion-date.php';
+
+        // Query Filters
+        require_once SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
     }
 
     /**
@@ -133,6 +139,25 @@ final class SoulSites_LearnDash_Elementor {
         $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Enrollment_Status() );
         $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Progress() );
         $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Completion_Date() );
+    }
+
+    /**
+     * Initialize Query Filters
+     */
+    public function init_query_filters() {
+        // Initialize Course Purchase Query Filter
+        new SoulSites\Query\Course_Purchase_Query();
+
+        // Add controls to Loop widgets
+        add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+        add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+    }
+
+    /**
+     * Add Query Controls to Loop Widgets
+     */
+    public function add_query_controls( $element, $args ) {
+        SoulSites\Query\Course_Purchase_Query::register_controls( $element );
     }
 
     /**
