@@ -69,25 +69,30 @@ class Course_Purchase_Status extends Tag {
      * Render tag
      */
     public function render() {
-        $course_id = get_the_ID();
+        try {
+            $course_id = get_the_ID();
 
-        // Check if it's a course
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
+            // Check if it's a course
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+                return;
+            }
+
+            $settings = $this->get_settings();
+            $enrolled_text = $settings['enrolled_text'];
+            $not_enrolled_text = $settings['not_enrolled_text'];
+
+            // Check if user is logged in and enrolled
+            if ( is_user_logged_in() && function_exists( 'sfwd_lms_has_access' ) ) {
+                $user_id = get_current_user_id();
+                $has_access = sfwd_lms_has_access( $course_id, $user_id );
+
+                echo $has_access ? esc_html( $enrolled_text ) : esc_html( $not_enrolled_text );
+            } else {
+                echo esc_html( $not_enrolled_text );
+            }
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts ausgeben
             return;
-        }
-
-        $settings = $this->get_settings();
-        $enrolled_text = $settings['enrolled_text'];
-        $not_enrolled_text = $settings['not_enrolled_text'];
-
-        // Check if user is logged in and enrolled
-        if ( is_user_logged_in() ) {
-            $user_id = get_current_user_id();
-            $has_access = sfwd_lms_has_access( $course_id, $user_id );
-
-            echo $has_access ? esc_html( $enrolled_text ) : esc_html( $not_enrolled_text );
-        } else {
-            echo esc_html( $not_enrolled_text );
         }
     }
 }

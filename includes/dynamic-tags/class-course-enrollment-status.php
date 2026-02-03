@@ -78,23 +78,35 @@ class Course_Enrollment_Status extends Tag {
      * Render tag
      */
     public function render() {
-        $course_id = get_the_ID();
+        try {
+            $course_id = get_the_ID();
 
-        // Check if it's a course
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
+            // Check if it's a course
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+                return;
+            }
+
+            $settings = $this->get_settings();
+
+            if ( ! is_user_logged_in() ) {
+                echo esc_html( $settings['not_logged_in_text'] );
+                return;
+            }
+
+            $user_id = get_current_user_id();
+
+            // Check if LearnDash function exists
+            if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
+                echo esc_html( $settings['not_enrolled_text'] );
+                return;
+            }
+
+            $has_access = sfwd_lms_has_access( $course_id, $user_id );
+
+            echo $has_access ? esc_html( $settings['enrolled_text'] ) : esc_html( $settings['not_enrolled_text'] );
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts ausgeben
             return;
         }
-
-        $settings = $this->get_settings();
-
-        if ( ! is_user_logged_in() ) {
-            echo esc_html( $settings['not_logged_in_text'] );
-            return;
-        }
-
-        $user_id = get_current_user_id();
-        $has_access = sfwd_lms_has_access( $course_id, $user_id );
-
-        echo $has_access ? esc_html( $settings['enrolled_text'] ) : esc_html( $settings['not_enrolled_text'] );
     }
 }

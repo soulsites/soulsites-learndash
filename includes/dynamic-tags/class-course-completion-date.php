@@ -85,38 +85,55 @@ class Course_Completion_Date extends Tag {
      * Render tag
      */
     public function render() {
-        $course_id = get_the_ID();
+        try {
+            $course_id = get_the_ID();
 
-        // Check if it's a course
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
+            // Check if it's a course
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+                return;
+            }
+
+            $settings = $this->get_settings();
+
+            if ( ! is_user_logged_in() ) {
+                echo esc_html( $settings['not_enrolled_text'] );
+                return;
+            }
+
+            $user_id = get_current_user_id();
+
+            // Check if LearnDash function exists
+            if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
+                echo esc_html( $settings['not_enrolled_text'] );
+                return;
+            }
+
+            // Check if user has access
+            if ( ! sfwd_lms_has_access( $course_id, $user_id ) ) {
+                echo esc_html( $settings['not_enrolled_text'] );
+                return;
+            }
+
+            // Check if completion function exists
+            if ( ! function_exists( 'learndash_user_get_course_completed_date' ) ) {
+                echo esc_html( $settings['not_completed_text'] );
+                return;
+            }
+
+            // Get completion timestamp
+            $completed = learndash_user_get_course_completed_date( $user_id, $course_id );
+
+            if ( empty( $completed ) ) {
+                echo esc_html( $settings['not_completed_text'] );
+                return;
+            }
+
+            // Format date
+            $date_format = $settings['date_format'];
+            echo esc_html( date_i18n( $date_format, $completed ) );
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts ausgeben
             return;
         }
-
-        $settings = $this->get_settings();
-
-        if ( ! is_user_logged_in() ) {
-            echo esc_html( $settings['not_enrolled_text'] );
-            return;
-        }
-
-        $user_id = get_current_user_id();
-
-        // Check if user has access
-        if ( ! sfwd_lms_has_access( $course_id, $user_id ) ) {
-            echo esc_html( $settings['not_enrolled_text'] );
-            return;
-        }
-
-        // Get completion timestamp
-        $completed = learndash_user_get_course_completed_date( $user_id, $course_id );
-
-        if ( empty( $completed ) ) {
-            echo esc_html( $settings['not_completed_text'] );
-            return;
-        }
-
-        // Format date
-        $date_format = $settings['date_format'];
-        echo esc_html( date_i18n( $date_format, $completed ) );
     }
 }

@@ -77,17 +77,26 @@ class Course_Is_Enrolled_Condition extends \ElementorPro\Modules\ThemeBuilder\Co
      * Check condition
      */
     public function check( $args ) {
-        if ( ! is_user_logged_in() ) {
+        try {
+            if ( ! is_user_logged_in() ) {
+                return false;
+            }
+
+            $course_id = get_the_ID();
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+                return false;
+            }
+
+            // Check if LearnDash function exists
+            if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
+                return false;
+            }
+
+            $user_id = get_current_user_id();
+            return sfwd_lms_has_access( $course_id, $user_id );
+        } catch ( \Exception $e ) {
             return false;
         }
-
-        $course_id = get_the_ID();
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
-            return false;
-        }
-
-        $user_id = get_current_user_id();
-        return sfwd_lms_has_access( $course_id, $user_id );
     }
 }
 
@@ -121,16 +130,25 @@ class Course_Not_Enrolled_Condition extends \ElementorPro\Modules\ThemeBuilder\C
      * Check condition
      */
     public function check( $args ) {
-        $course_id = get_the_ID();
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
+        try {
+            $course_id = get_the_ID();
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+                return true;
+            }
+
+            if ( ! is_user_logged_in() ) {
+                return true;
+            }
+
+            // Check if LearnDash function exists
+            if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
+                return true;
+            }
+
+            $user_id = get_current_user_id();
+            return ! sfwd_lms_has_access( $course_id, $user_id );
+        } catch ( \Exception $e ) {
             return true;
         }
-
-        if ( ! is_user_logged_in() ) {
-            return true;
-        }
-
-        $user_id = get_current_user_id();
-        return ! sfwd_lms_has_access( $course_id, $user_id );
     }
 }

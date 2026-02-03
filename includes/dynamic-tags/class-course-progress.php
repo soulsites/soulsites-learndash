@@ -72,47 +72,60 @@ class Course_Progress extends Tag {
      * Render tag
      */
     public function render() {
-        $course_id = get_the_ID();
+        try {
+            $course_id = get_the_ID();
 
-        // Check if it's a course
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
-            return;
-        }
+            // Check if it's a course
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+                return;
+            }
 
-        $settings = $this->get_settings();
+            $settings = $this->get_settings();
 
-        if ( ! is_user_logged_in() ) {
-            echo esc_html( $settings['not_enrolled_text'] );
+            if ( ! is_user_logged_in() ) {
+                echo esc_html( $settings['not_enrolled_text'] );
+                if ( $settings['show_percentage'] === 'yes' ) {
+                    echo '%';
+                }
+                return;
+            }
+
+            $user_id = get_current_user_id();
+
+            // Check if LearnDash function exists and user has access
+            if ( ! function_exists( 'sfwd_lms_has_access' ) || ! sfwd_lms_has_access( $course_id, $user_id ) ) {
+                echo esc_html( $settings['not_enrolled_text'] );
+                if ( $settings['show_percentage'] === 'yes' ) {
+                    echo '%';
+                }
+                return;
+            }
+
+            // Get course progress
+            if ( ! function_exists( 'learndash_course_progress' ) ) {
+                echo '0';
+                if ( $settings['show_percentage'] === 'yes' ) {
+                    echo '%';
+                }
+                return;
+            }
+
+            $progress_percentage = learndash_course_progress( [
+                'user_id'   => $user_id,
+                'course_id' => $course_id,
+                'array'     => true
+            ] );
+
+            $percentage = isset( $progress_percentage['percentage'] ) ? intval( $progress_percentage['percentage'] ) : 0;
+
+            echo esc_html( $percentage );
+
             if ( $settings['show_percentage'] === 'yes' ) {
                 echo '%';
             }
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts ausgeben
             return;
-        }
-
-        $user_id = get_current_user_id();
-
-        // Check if user has access
-        if ( ! sfwd_lms_has_access( $course_id, $user_id ) ) {
-            echo esc_html( $settings['not_enrolled_text'] );
-            if ( $settings['show_percentage'] === 'yes' ) {
-                echo '%';
-            }
-            return;
-        }
-
-        // Get course progress
-        $progress_percentage = learndash_course_progress( [
-            'user_id'   => $user_id,
-            'course_id' => $course_id,
-            'array'     => true
-        ] );
-
-        $percentage = isset( $progress_percentage['percentage'] ) ? intval( $progress_percentage['percentage'] ) : 0;
-
-        echo esc_html( $percentage );
-
-        if ( $settings['show_percentage'] === 'yes' ) {
-            echo '%';
         }
     }
 }
