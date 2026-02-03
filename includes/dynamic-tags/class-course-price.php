@@ -82,47 +82,58 @@ class Course_Price extends Tag {
      * Render tag
      */
     public function render() {
-        $course_id = get_the_ID();
+        try {
+            $course_id = get_the_ID();
 
-        // Check if it's a course
-        if ( get_post_type( $course_id ) !== 'sfwd-courses' ) {
-            return;
-        }
-
-        $settings = $this->get_settings();
-
-        // Check if user is already enrolled
-        if ( is_user_logged_in() ) {
-            $user_id = get_current_user_id();
-            if ( sfwd_lms_has_access( $course_id, $user_id ) ) {
-                echo esc_html( $settings['enrolled_text'] );
+            // Check if it's a course
+            if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
                 return;
             }
-        }
 
-        // Get course price
-        $course_price_type = learndash_get_setting( $course_id, 'course_price_type' );
+            $settings = $this->get_settings();
 
-        if ( $course_price_type === 'open' || $course_price_type === 'free' ) {
-            echo esc_html( $settings['free_text'] );
+            // Check if user is already enrolled
+            if ( is_user_logged_in() && function_exists( 'sfwd_lms_has_access' ) ) {
+                $user_id = get_current_user_id();
+                if ( sfwd_lms_has_access( $course_id, $user_id ) ) {
+                    echo esc_html( $settings['enrolled_text'] );
+                    return;
+                }
+            }
+
+            // Check if LearnDash function exists
+            if ( ! function_exists( 'learndash_get_setting' ) ) {
+                echo esc_html( $settings['free_text'] );
+                return;
+            }
+
+            // Get course price
+            $course_price_type = learndash_get_setting( $course_id, 'course_price_type' );
+
+            if ( $course_price_type === 'open' || $course_price_type === 'free' ) {
+                echo esc_html( $settings['free_text'] );
+                return;
+            }
+
+            $course_price = learndash_get_setting( $course_id, 'course_price' );
+
+            if ( empty( $course_price ) ) {
+                echo esc_html( $settings['free_text'] );
+                return;
+            }
+
+            // Format price
+            $price_formatted = $course_price;
+
+            if ( $settings['show_currency'] === 'yes' && function_exists( 'learndash_get_currency_symbol' ) ) {
+                $currency_symbol = learndash_get_currency_symbol();
+                $price_formatted = $currency_symbol . ' ' . number_format( (float) $course_price, 2, ',', '.' );
+            }
+
+            echo esc_html( $price_formatted );
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts ausgeben
             return;
         }
-
-        $course_price = learndash_get_setting( $course_id, 'course_price' );
-
-        if ( empty( $course_price ) ) {
-            echo esc_html( $settings['free_text'] );
-            return;
-        }
-
-        // Format price
-        $price_formatted = $course_price;
-
-        if ( $settings['show_currency'] === 'yes' ) {
-            $currency_symbol = learndash_get_currency_symbol();
-            $price_formatted = $currency_symbol . ' ' . number_format( (float) $course_price, 2, ',', '.' );
-        }
-
-        echo esc_html( $price_formatted );
     }
 }

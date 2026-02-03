@@ -3,7 +3,7 @@
  * Plugin Name: SoulSites LearnDash for Elementor
  * Plugin URI: https://soulsites.de
  * Description: Erweitert Elementor mit LearnDash Dynamic Tags und Display Conditions für Login Status und Kurs-Kaufstatus.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Christian Wedel
  * Author URI: https://soulsites.de
  * Text Domain: soulsites-learndash
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'SOULSITES_LEARNDASH_VERSION', '1.0.0' );
+define( 'SOULSITES_LEARNDASH_VERSION', '1.1.0' );
 define( 'SOULSITES_LEARNDASH_FILE', __FILE__ );
 define( 'SOULSITES_LEARNDASH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
@@ -52,7 +52,7 @@ final class SoulSites_LearnDash_Elementor {
      * Constructor
      */
     private function __construct() {
-        add_action( 'plugins_loaded', [ $this, 'init' ] );
+        add_action( 'plugins_loaded', [ $this, 'init' ], 20 );
     }
 
     /**
@@ -80,12 +80,12 @@ final class SoulSites_LearnDash_Elementor {
         // Load plugin files
         $this->includes();
 
-        // Register Elementor components
-        add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ] );
-        add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ] );
+        // Register Elementor components with proper hooks
+        add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ], 10, 1 );
+        add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
 
-        // Initialize Query Filters
-        $this->init_query_filters();
+        // Initialize Query Filters (delayed to ensure Elementor is fully loaded)
+        add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
     }
 
     /**
@@ -93,71 +93,148 @@ final class SoulSites_LearnDash_Elementor {
      */
     private function includes() {
         // Display Conditions
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/conditions/class-login-status-condition.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/conditions/class-logged-in-condition.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/conditions/class-logged-out-condition.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/conditions/class-course-enrolled-condition.php';
+        $condition_files = [
+            'class-login-status-condition.php',
+            'class-logged-in-condition.php',
+            'class-logged-out-condition.php',
+            'class-course-enrolled-condition.php',
+        ];
+
+        foreach ( $condition_files as $file ) {
+            $filepath = SOULSITES_LEARNDASH_PATH . 'includes/conditions/' . $file;
+            if ( file_exists( $filepath ) ) {
+                require_once $filepath;
+            }
+        }
 
         // Dynamic Tags
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-purchase-status.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-price.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-enrollment-status.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-progress.php';
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/class-course-completion-date.php';
+        $tag_files = [
+            'class-course-purchase-status.php',
+            'class-course-price.php',
+            'class-course-enrollment-status.php',
+            'class-course-progress.php',
+            'class-course-completion-date.php',
+        ];
+
+        foreach ( $tag_files as $file ) {
+            $filepath = SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/' . $file;
+            if ( file_exists( $filepath ) ) {
+                require_once $filepath;
+            }
+        }
 
         // Query Filters
-        require_once SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
+        $query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
+        if ( file_exists( $query_file ) ) {
+            require_once $query_file;
+        }
     }
 
     /**
      * Register Display Conditions
      */
     public function register_conditions( $conditions_manager ) {
-        // Login Status Conditions
-        $conditions_manager->get_condition( 'general' )->register_sub_condition(
-            new SoulSites\Conditions\Login_Status_Condition()
-        );
+        // Sicherheitsprüfung
+        if ( ! $conditions_manager || ! is_object( $conditions_manager ) ) {
+            return;
+        }
 
-        // Course Enrollment Condition
-        $conditions_manager->get_condition( 'general' )->register_sub_condition(
-            new SoulSites\Conditions\Course_Enrolled_Condition()
-        );
+        try {
+            $general_condition = $conditions_manager->get_condition( 'general' );
+
+            if ( ! $general_condition || ! is_object( $general_condition ) ) {
+                return;
+            }
+
+            // Login Status Conditions
+            if ( class_exists( 'SoulSites\Conditions\Login_Status_Condition' ) ) {
+                $general_condition->register_sub_condition(
+                    new SoulSites\Conditions\Login_Status_Condition()
+                );
+            }
+
+            // Course Enrollment Condition
+            if ( class_exists( 'SoulSites\Conditions\Course_Enrolled_Condition' ) ) {
+                $general_condition->register_sub_condition(
+                    new SoulSites\Conditions\Course_Enrolled_Condition()
+                );
+            }
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts tun - verhindert Editor-Crash
+            return;
+        }
     }
 
     /**
      * Register Dynamic Tags
      */
     public function register_dynamic_tags( $dynamic_tags_manager ) {
-        // Create LearnDash group
-        $dynamic_tags_manager->register_group( 'learndash', [
-            'title' => esc_html__( 'LearnDash', 'soulsites-learndash' )
-        ] );
+        // Sicherheitsprüfung
+        if ( ! $dynamic_tags_manager || ! is_object( $dynamic_tags_manager ) ) {
+            return;
+        }
 
-        // Register tags
-        $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Purchase_Status() );
-        $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Price() );
-        $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Enrollment_Status() );
-        $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Progress() );
-        $dynamic_tags_manager->register( new SoulSites\Dynamic_Tags\Course_Completion_Date() );
+        try {
+            // Create LearnDash group
+            $dynamic_tags_manager->register_group( 'learndash', [
+                'title' => esc_html__( 'LearnDash', 'soulsites-learndash' )
+            ] );
+
+            // Register tags with class existence check
+            $tag_classes = [
+                'SoulSites\Dynamic_Tags\Course_Purchase_Status',
+                'SoulSites\Dynamic_Tags\Course_Price',
+                'SoulSites\Dynamic_Tags\Course_Enrollment_Status',
+                'SoulSites\Dynamic_Tags\Course_Progress',
+                'SoulSites\Dynamic_Tags\Course_Completion_Date',
+            ];
+
+            foreach ( $tag_classes as $class ) {
+                if ( class_exists( $class ) ) {
+                    $dynamic_tags_manager->register( new $class() );
+                }
+            }
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts tun - verhindert Editor-Crash
+            return;
+        }
     }
 
     /**
      * Initialize Query Filters
      */
     public function init_query_filters() {
-        // Initialize Course Purchase Query Filter
-        new SoulSites\Query\Course_Purchase_Query();
+        if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+            return;
+        }
 
-        // Add controls to Loop widgets
-        add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
-        add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+        try {
+            // Initialize Course Purchase Query Filter (Handler prüft selbst ob Editor)
+            new SoulSites\Query\Course_Purchase_Query();
+
+            // Add controls to Loop widgets - muss immer registriert werden für Editor-Panel
+            add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+            add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts tun
+            return;
+        }
     }
 
     /**
      * Add Query Controls to Loop Widgets
      */
     public function add_query_controls( $element, $args ) {
-        SoulSites\Query\Course_Purchase_Query::register_controls( $element );
+        if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+            return;
+        }
+
+        try {
+            SoulSites\Query\Course_Purchase_Query::register_controls( $element );
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts tun
+            return;
+        }
     }
 
     /**
