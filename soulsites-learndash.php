@@ -84,6 +84,9 @@ final class SoulSites_LearnDash_Elementor {
         add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ], 10, 1 );
         add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
 
+        // Register Elementor Widgets
+        add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
+
         // Initialize Query Filters (delayed to ensure Elementor is fully loaded)
         add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
     }
@@ -118,6 +121,19 @@ final class SoulSites_LearnDash_Elementor {
 
         foreach ( $tag_files as $file ) {
             $filepath = SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/' . $file;
+            if ( file_exists( $filepath ) ) {
+                require_once $filepath;
+            }
+        }
+
+        // Widgets
+        $widget_files = [
+            'class-course-progress-bar.php',
+            'class-course-content.php',
+        ];
+
+        foreach ( $widget_files as $file ) {
+            $filepath = SOULSITES_LEARNDASH_PATH . 'includes/widgets/' . $file;
             if ( file_exists( $filepath ) ) {
                 require_once $filepath;
             }
@@ -192,6 +208,31 @@ final class SoulSites_LearnDash_Elementor {
             foreach ( $tag_classes as $class ) {
                 if ( class_exists( $class ) ) {
                     $dynamic_tags_manager->register( new $class() );
+                }
+            }
+        } catch ( \Exception $e ) {
+            // Bei Fehler nichts tun - verhindert Editor-Crash
+            return;
+        }
+    }
+
+    /**
+     * Register Elementor Widgets
+     */
+    public function register_widgets( $widgets_manager ) {
+        if ( ! $widgets_manager || ! is_object( $widgets_manager ) ) {
+            return;
+        }
+
+        try {
+            $widget_classes = [
+                'SoulSites\Widgets\Course_Progress_Bar',
+                'SoulSites\Widgets\Course_Content',
+            ];
+
+            foreach ( $widget_classes as $class ) {
+                if ( class_exists( $class ) ) {
+                    $widgets_manager->register( new $class() );
                 }
             }
         } catch ( \Exception $e ) {
