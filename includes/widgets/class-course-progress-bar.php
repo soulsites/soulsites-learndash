@@ -308,7 +308,11 @@ class Course_Progress_Bar extends Widget_Base {
 
             // Check if it's a course
             if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
-                if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
+                $is_editor = false;
+                if ( isset( \Elementor\Plugin::$instance->editor ) && is_object( \Elementor\Plugin::$instance->editor ) ) {
+                    $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode();
+                }
+                if ( $is_editor ) {
                     echo '<div class="soulsites-progress-bar-container">';
                     echo '<div class="soulsites-progress-bar-wrapper">';
                     echo '<div class="soulsites-progress-bar-fill" style="width: 65%;">';
