@@ -189,7 +189,7 @@ class Course_Content extends Widget_Base {
             }
 
             echo '<div class="soulsites-course-content">';
-            echo $content; // Already processed by the_content or wpautop
+            echo wp_kses_post( $content );
             echo '</div>';
 
         } catch ( \Exception $e ) {

@@ -123,11 +123,12 @@ class Course_Price extends Tag {
             }
 
             // Format price
-            $price_formatted = $course_price;
+            $price_numeric  = number_format( (float) $course_price, 2, ',', '.' );
+            $price_formatted = $price_numeric;
 
             if ( $settings['show_currency'] === 'yes' && function_exists( 'learndash_get_currency_symbol' ) ) {
-                $currency_symbol = learndash_get_currency_symbol();
-                $price_formatted = $currency_symbol . ' ' . number_format( (float) $course_price, 2, ',', '.' );
+                $currency_symbol  = learndash_get_currency_symbol();
+                $price_formatted  = $currency_symbol . ' ' . $price_numeric;
             }
 
             echo esc_html( $price_formatted );

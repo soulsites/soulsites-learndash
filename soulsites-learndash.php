@@ -66,7 +66,7 @@ final class SoulSites_LearnDash_Elementor {
         }
 
         // Check if Elementor Pro is installed and activated
-        if ( ! function_exists( 'elementor_pro_load_plugin' ) ) {
+        if ( ! defined( 'ELEMENTOR_PRO_VERSION' ) ) {
             add_action( 'admin_notices', [ $this, 'admin_notice_missing_elementor_pro' ] );
             return;
         }
@@ -287,7 +287,7 @@ final class SoulSites_LearnDash_Elementor {
             '<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
             '<strong>' . esc_html__( 'Elementor', 'soulsites-learndash' ) . '</strong>'
         );
-        printf( '<div class="notice notice-warning is-dismissible"><p>%1$s</p></div>', $message );
+        echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
     }
 
     /**
@@ -299,7 +299,7 @@ final class SoulSites_LearnDash_Elementor {
             '<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
             '<strong>' . esc_html__( 'Elementor Pro', 'soulsites-learndash' ) . '</strong>'
         );
-        printf( '<div class="notice notice-warning is-dismissible"><p>%1$s</p></div>', $message );
+        echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
     }
 
     /**
@@ -311,7 +311,7 @@ final class SoulSites_LearnDash_Elementor {
             '<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
             '<strong>' . esc_html__( 'LearnDash LMS', 'soulsites-learndash' ) . '</strong>'
         );
-        printf( '<div class="notice notice-warning is-dismissible"><p>%1$s</p></div>', $message );
+        echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
     }
 }
 

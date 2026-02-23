@@ -1,0 +1,377 @@
+# Copyright (C) 2025 Christian Wedel - SoulSites
+# This file is distributed under the same license as the SoulSites LearnDash for Elementor plugin.
+# Christian Wedel <support@soulsites.de>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SoulSites LearnDash for Elementor 1.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/soulsites/soulsites-learndash/issues\n"
+"POT-Creation-Date: 2025-01-01T00:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2025-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"X-Generator: WP-CLI 2.x\n"
+"X-Domain: soulsites-learndash\n"
+
+#. Plugin Name of the plugin
+msgid "SoulSites LearnDash for Elementor"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://soulsites.de"
+msgstr ""
+
+#. Description of the plugin
+msgid "Erweitert Elementor mit LearnDash Dynamic Tags und Display Conditions für Login Status und Kurs-Kaufstatus."
+msgstr ""
+
+#. Author of the plugin
+msgid "Christian Wedel"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://soulsites.de"
+msgstr ""
+
+#: soulsites-learndash.php
+msgid "\"%1$s\" benötigt \"%2$s\" um zu funktionieren."
+msgstr ""
+
+#: soulsites-learndash.php
+msgid "SoulSites LearnDash for Elementor"
+msgstr ""
+
+#: soulsites-learndash.php
+msgid "Elementor"
+msgstr ""
+
+#: soulsites-learndash.php
+msgid "Elementor Pro"
+msgstr ""
+
+#: soulsites-learndash.php
+msgid "LearnDash LMS"
+msgstr ""
+
+#: soulsites-learndash.php
+msgid "LearnDash"
+msgstr ""
+
+#: includes/conditions/class-login-status-condition.php
+msgid "Login Status"
+msgstr ""
+
+#: includes/conditions/class-logged-in-condition.php
+msgid "Logged In"
+msgstr ""
+
+#: includes/conditions/class-logged-out-condition.php
+msgid "Logged Out"
+msgstr ""
+
+#: includes/conditions/class-course-enrolled-condition.php
+msgid "Course Enrolled"
+msgstr ""
+
+#: includes/conditions/class-course-enrolled-condition.php
+msgid "Is Enrolled"
+msgstr ""
+
+#: includes/conditions/class-course-enrolled-condition.php
+msgid "Not Enrolled"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-purchase-status.php
+msgid "Kurs Kaufstatus"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-purchase-status.php
+msgid "Text wenn gekauft"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-purchase-status.php
+msgid "Bereits gekauft"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-purchase-status.php
+msgid "Text wenn nicht gekauft"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-purchase-status.php
+msgid "Noch nicht gekauft"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Kurs Preis"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Währungssymbol anzeigen"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Ja"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Nein"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Text für kostenlose Kurse"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Kostenlos"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Text wenn bereits gekauft"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-price.php
+msgid "Leer lassen um nichts anzuzeigen"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Kurs Einschreibungsstatus"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Text wenn eingeschrieben"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Eingeschrieben"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Text wenn nicht eingeschrieben"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Nicht eingeschrieben"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Text wenn nicht eingeloggt"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-enrollment-status.php
+msgid "Bitte einloggen"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-progress.php
+msgid "Kurs Fortschritt"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-progress.php
+msgid "Prozentzeichen anzeigen"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-progress.php
+msgid "Text wenn nicht eingeschrieben"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "Kurs Abschlussdatum"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "Datumsformat"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "TT.MM.JJJJ (z.B. 15.01.2024)"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "TT. Monat JJJJ (z.B. 15. Januar 2024)"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "T. Monat JJJJ (z.B. 15. Januar 2024)"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "Monat T, JJJJ (z.B. January 15, 2024)"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "JJJJ-MM-TT (z.B. 2024-01-15)"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "Text wenn nicht abgeschlossen"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "Noch nicht abgeschlossen"
+msgstr ""
+
+#: includes/dynamic-tags/class-course-completion-date.php
+msgid "Text wenn nicht eingeschrieben"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Kurs Fortschrittsanzeige"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Inhalt"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Prozentzahl anzeigen"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Position der Prozentzahl"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Im Balken"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Oberhalb"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Unterhalb"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Label anzeigen"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Label Text"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Kursfortschritt"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Text wenn nicht eingeschrieben"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Nicht eingeschrieben"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Ausblenden wenn nicht eingeschrieben"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Fortschrittsbalken"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Höhe"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Eckenradius"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Hintergrundfarbe"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Fortschrittsfarbe"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Text"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Prozentzahl Farbe"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Prozentzahl Typografie"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Label Farbe"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Label Typografie"
+msgstr ""
+
+#: includes/widgets/class-course-progress-bar.php
+msgid "Nicht-eingeschrieben Text Farbe"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Kurs Inhalt (Nur Text)"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Dieses Widget gibt nur den reinen Textinhalt des Kurses aus - ohne den LearnDash Fortschrittsbalken und die Lektionsliste."
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "WordPress Content-Filter anwenden"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Wendet Standard-WordPress-Filter wie wpautop und Shortcodes an, aber blockiert LearnDash-Filter."
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Textfarbe"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Typografie"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Textausrichtung"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Links"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Zentriert"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Rechts"
+msgstr ""
+
+#: includes/widgets/class-course-content.php
+msgid "Blocksatz"
+msgstr ""
+
+#: includes/query/class-course-purchase-query.php
+msgid "LearnDash Kurs-Filter"
+msgstr ""
+
+#: includes/query/class-course-purchase-query.php
+msgid "Keine Filterung"
+msgstr ""
+
+#: includes/query/class-course-purchase-query.php
+msgid "Nur gekaufte Kurse"
+msgstr ""
+
+#: includes/query/class-course-purchase-query.php
+msgid "Nur nicht gekaufte Kurse"
+msgstr ""
+
+#: includes/query/class-course-purchase-query.php
+msgid "Filtert die angezeigten LearnDash Kurse basierend auf dem Kaufstatus des aktuellen Benutzers."
+msgstr ""

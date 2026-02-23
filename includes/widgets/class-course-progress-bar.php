@@ -310,12 +310,22 @@ class Course_Progress_Bar extends Widget_Base {
             if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
                 if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
                     echo '<div class="soulsites-progress-bar-container">';
-                    echo '<div class="soulsites-progress-bar-wrapper">';
+                    if ( $settings['show_label'] === 'yes' && ! empty( $settings['label_text'] ) ) {
+                        echo '<div class="soulsites-progress-bar-label">' . esc_html( $settings['label_text'] ) . '</div>';
+                    }
+                    if ( $settings['show_percentage_text'] === 'yes' && $settings['percentage_position'] === 'above' ) {
+                        echo '<div class="soulsites-progress-bar-percentage">65%</div>';
+                    }
+                    echo '<div class="soulsites-progress-bar-wrapper" role="progressbar" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100">';
                     echo '<div class="soulsites-progress-bar-fill" style="width: 65%;">';
                     if ( $settings['show_percentage_text'] === 'yes' && $settings['percentage_position'] === 'inside' ) {
                         echo '<span class="soulsites-progress-bar-percentage">65%</span>';
                     }
-                    echo '</div></div></div>';
+                    echo '</div></div>';
+                    if ( $settings['show_percentage_text'] === 'yes' && $settings['percentage_position'] === 'below' ) {
+                        echo '<div class="soulsites-progress-bar-percentage">65%</div>';
+                    }
+                    echo '</div>';
                 }
                 return;
             }
@@ -362,7 +372,7 @@ class Course_Progress_Bar extends Widget_Base {
             }
 
             // Bar
-            echo '<div class="soulsites-progress-bar-wrapper">';
+            echo '<div class="soulsites-progress-bar-wrapper" role="progressbar" aria-valuenow="' . esc_attr( $percentage ) . '" aria-valuemin="0" aria-valuemax="100" aria-label="' . esc_attr__( 'Kursfortschritt', 'soulsites-learndash' ) . '">';
             echo '<div class="soulsites-progress-bar-fill" style="width: ' . esc_attr( $percentage ) . '%;">';
 
             // Percentage inside bar

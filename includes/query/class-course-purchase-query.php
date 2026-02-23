@@ -28,11 +28,8 @@ class Course_Purchase_Query {
             return;
         }
 
-        // Hook für Elementor Query Filter
+        // Hook für Elementor Query Filter (Elementor Pro Loop Grid/Carousel mit Query ID)
         add_action( 'elementor/query/course_purchase_filter', [ $this, 'filter_by_purchase_status' ], 10, 2 );
-
-        // Filter für Loop Widget Query Controls hinzufügen
-        add_filter( 'elementor_pro/query/query_args', [ $this, 'add_query_args' ], 10, 2 );
     }
 
     /**
@@ -196,59 +193,6 @@ class Course_Purchase_Query {
             default:
                 return null;
         }
-    }
-
-    /**
-     * Fügt Query Args basierend auf Meta-Einstellungen hinzu
-     */
-    public function add_query_args( $query_args, $widget ) {
-        // Prüfe ob Widget vorhanden und gültig ist
-        if ( ! $widget || ! is_object( $widget ) || ! method_exists( $widget, 'get_settings' ) ) {
-            return $query_args;
-        }
-
-        try {
-            $settings = $widget->get_settings();
-
-            if ( ! isset( $settings['course_purchase_filter'] ) || $settings['course_purchase_filter'] === '' ) {
-                return $query_args;
-            }
-
-            $filter_type = $settings['course_purchase_filter'];
-            $user_id = get_current_user_id();
-
-            // Wenn Benutzer nicht eingeloggt ist
-            if ( ! $user_id ) {
-                if ( $filter_type === 'purchased' ) {
-                    // Keine Kurse anzeigen
-                    $query_args['post__in'] = [ 0 ];
-                }
-                return $query_args;
-            }
-
-            // Nur für LearnDash Kurse anwenden
-            if ( ! isset( $query_args['post_type'] ) || $query_args['post_type'] !== 'sfwd-courses' ) {
-                return $query_args;
-            }
-
-            $filtered_courses = $this->get_filtered_courses( $user_id, $filter_type );
-
-            if ( $filtered_courses === null ) {
-                return $query_args;
-            }
-
-            // Wenn keine Kurse gefunden wurden, leeres Ergebnis zurückgeben
-            if ( empty( $filtered_courses ) ) {
-                $query_args['post__in'] = [ 0 ];
-            } else {
-                $query_args['post__in'] = $filtered_courses;
-            }
-        } catch ( \Exception $e ) {
-            // Bei Fehler Original Query Args zurückgeben
-            return $query_args;
-        }
-
-        return $query_args;
     }
 
     /**
