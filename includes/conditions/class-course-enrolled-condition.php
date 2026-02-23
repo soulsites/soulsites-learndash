@@ -133,7 +133,8 @@ class Course_Not_Enrolled_Condition extends \ElementorPro\Modules\ThemeBuilder\C
         try {
             $course_id = get_the_ID();
             if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
-                return true;
+                // Nicht auf einer Kurs-Seite: Bedingung nicht erfüllt (kein Kurs = kein Einschreibungsstatus)
+                return false;
             }
 
             if ( ! is_user_logged_in() ) {
