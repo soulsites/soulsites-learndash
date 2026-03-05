@@ -6,7 +6,7 @@ body.post-type-sfwd-courses .edit-post-layout__metaboxes {
     border: none;
     box-shadow: 3px 3px 15px rgba(0, 0, 0, 0.5);
     border-radius: 15px !important;
-    padding: 48px;
+    padding: 48px !important;
     background: #f5f5f5;
 }
 
@@ -15,7 +15,7 @@ body.post-type-sfwd-courses .acf-postbox {
     border: none;
 }
 
-body.post-type-sfwd-courses textarea {
+body.post-type-sfwd-courses textarea, body.post-type-sfwd-courses input[type="text"], body.post-type-sfwd-courses input[type="email"] {
     background: #fafafa;
     border-radius: 6px;
     border: none;
