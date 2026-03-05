@@ -1,4 +1,5 @@
-body.post-type-sfwd-courses .acf-field {
+body.post-type-sfwd-courses textarea {
     background: #fafafa;
     border-radius: 6px;
+    border: none;
 }
