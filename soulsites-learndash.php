@@ -83,6 +83,7 @@ final class SoulSites_LearnDash_Elementor {
         add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
         add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
         add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
     }
 
     /**
@@ -132,25 +133,24 @@ final class SoulSites_LearnDash_Elementor {
     }
 
     /**
- * Enqueue Admin CSS
- */
-public function enqueue_admin_styles( $hook ) {
+     * Enqueue Admin CSS
+     */
+    public function enqueue_admin_styles( $hook ) {
 
-    $screen = get_current_screen();
+        $screen = get_current_screen();
 
-    // Nur im LearnDash Kurs Post Type laden
-    if ( isset( $screen->post_type ) && $screen->post_type === 'sfwd-courses' ) {
+        // Nur im LearnDash Kurs Post Type laden
+        if ( isset( $screen->post_type ) && $screen->post_type === 'sfwd-courses' ) {
 
-        wp_enqueue_style(
-            'soulsites-learndash-admin',
-            SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
-            [],
-            SOULSITES_LEARNDASH_VERSION
-        );
+            wp_enqueue_style(
+                'soulsites-learndash-admin',
+                SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
+                [],
+                SOULSITES_LEARNDASH_VERSION
+            );
 
+        }
     }
-}
-    add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
 
     /**
      * Register Dynamic Tags
