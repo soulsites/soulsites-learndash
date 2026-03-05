@@ -15,8 +15,20 @@ body.post-type-sfwd-courses .acf-postbox {
     border: none;
 }
 
-body.post-type-sfwd-courses textarea, body.post-type-sfwd-courses input[type="text"], body.post-type-sfwd-courses input[type="email"] {
-    background: #fafafa;
+body.post-type-sfwd-courses textarea, body.post-type-sfwd-courses input[type="text"], body.post-type-sfwd-courses input[type="email"], body.post-type-sfwd-courses select {
+    background: #ffffff;
     border-radius: 6px;
     border: none;
+}
+
+body.post-type-sfwd-courses .select2-selection {
+    border: none;
+    padding: 4px;
+    height: 48px;
+    background: #ffffff;
+    border-radius: 6px;
+}
+
+body.post-type-sfwd-courses .select2-selection__arrow {
+    padding: 8px;
 }
