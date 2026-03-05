@@ -21,6 +21,10 @@ body.post-type-sfwd-courses textarea, body.post-type-sfwd-courses input[type="te
     border: none;
 }
 
+body.post-type-sfwd-courses textarea {
+    padding: 24px;
+}
+
 body.post-type-sfwd-courses .select2-selection {
     border: none;
     padding: 4px;
