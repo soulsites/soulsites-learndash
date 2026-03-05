@@ -132,6 +132,27 @@ final class SoulSites_LearnDash_Elementor {
     }
 
     /**
+ * Enqueue Admin CSS
+ */
+public function enqueue_admin_styles( $hook ) {
+
+    $screen = get_current_screen();
+
+    // Nur im LearnDash Kurs Post Type laden
+    if ( isset( $screen->post_type ) && $screen->post_type === 'sfwd-courses' ) {
+
+        wp_enqueue_style(
+            'soulsites-learndash-admin',
+            SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
+            [],
+            SOULSITES_LEARNDASH_VERSION
+        );
+
+    }
+}
+    add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
+
+    /**
      * Register Dynamic Tags
      * Lädt die Tag-Klassen erst hier, damit Elementor\Core\DynamicTags\Tag verfügbar ist.
      */
