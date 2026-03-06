@@ -61,17 +61,23 @@ class Tutor_Foto extends Tag {
                 return;
             }
 
-            // ACF gibt bei "Bildformat: Array" ein Array zurück
             if ( is_array( $foto ) ) {
+                // ACF Bildformat: Array
                 echo wp_json_encode( [
                     'id'  => $foto['ID'] ?? 0,
                     'url' => $foto['url'] ?? '',
                 ] );
             } elseif ( is_numeric( $foto ) ) {
-                // ACF gibt bei "Bildformat: ID" die Attachment-ID zurück
+                // ACF Bildformat: ID
                 echo wp_json_encode( [
                     'id'  => (int) $foto,
                     'url' => wp_get_attachment_url( (int) $foto ),
+                ] );
+            } elseif ( is_string( $foto ) ) {
+                // ACF Bildformat: URL
+                echo wp_json_encode( [
+                    'id'  => 0,
+                    'url' => $foto,
                 ] );
             }
         } catch ( \Exception $e ) {
