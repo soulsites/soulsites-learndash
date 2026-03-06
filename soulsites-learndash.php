@@ -169,6 +169,10 @@ final class SoulSites_LearnDash_Elementor {
                 'class-course-enrollment-status.php',
                 'class-course-progress.php',
                 'class-course-completion-date.php',
+                'class-tutor-name.php',
+                'class-tutor-bio.php',
+                'class-tutor-foto.php',
+                'class-tutor-link.php',
             ];
             foreach ( $tag_files as $file ) {
                 $filepath = SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/' . $file;
@@ -187,6 +191,10 @@ final class SoulSites_LearnDash_Elementor {
                 'SoulSites\Dynamic_Tags\Course_Enrollment_Status',
                 'SoulSites\Dynamic_Tags\Course_Progress',
                 'SoulSites\Dynamic_Tags\Course_Completion_Date',
+                'SoulSites\Dynamic_Tags\Tutor_Name',
+                'SoulSites\Dynamic_Tags\Tutor_Bio',
+                'SoulSites\Dynamic_Tags\Tutor_Foto',
+                'SoulSites\Dynamic_Tags\Tutor_Link',
             ];
 
             foreach ( $tag_classes as $class ) {
