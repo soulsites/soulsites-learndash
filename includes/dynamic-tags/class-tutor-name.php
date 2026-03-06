@@ -46,7 +46,14 @@ class Tutor_Name extends Tag {
 
             $tutor = $tutors[0];
 
-            echo esc_html( $tutor->post_title );
+            $name = get_field( 'name', $tutor->ID );
+
+            if ( empty( $name ) ) {
+                // Fallback auf post_title
+                $name = $tutor->post_title;
+            }
+
+            echo esc_html( $name );
         } catch ( \Exception $e ) {
             return;
         }
