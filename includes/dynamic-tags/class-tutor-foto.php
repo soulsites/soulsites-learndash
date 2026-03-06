@@ -46,7 +46,7 @@ class Tutor_Foto extends Tag {
             }
 
             $tutor = $tutors[0];
-            $foto  = get_field( 'name', $tutor->ID );
+            $foto  = get_field( 'profilbild', $tutor->ID );
 
             if ( empty( $foto ) ) {
                 // Fallback: WordPress Beitragsbild
