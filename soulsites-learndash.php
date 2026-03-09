@@ -102,6 +102,7 @@ final class SoulSites_LearnDash_Elementor {
                 'class-logged-in-condition.php',
                 'class-logged-out-condition.php',
                 'class-course-enrolled-condition.php',
+                'class-course-access-condition.php',
             ];
             foreach ( $condition_files as $file ) {
                 $filepath = SOULSITES_LEARNDASH_PATH . 'includes/conditions/' . $file;
@@ -125,6 +126,12 @@ final class SoulSites_LearnDash_Elementor {
             if ( class_exists( 'SoulSites\Conditions\Course_Enrolled_Condition' ) ) {
                 $general_condition->register_sub_condition(
                     new SoulSites\Conditions\Course_Enrolled_Condition()
+                );
+            }
+
+            if ( class_exists( 'SoulSites\Conditions\Course_Access_Condition' ) ) {
+                $general_condition->register_sub_condition(
+                    new SoulSites\Conditions\Course_Access_Condition()
                 );
             }
         } catch ( \Exception $e ) {
@@ -319,62 +326,6 @@ final class SoulSites_LearnDash_Elementor {
         echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
     }
 }
-
-/* später ordentlich machen */
-
-add_action('elementor/theme/register_conditions', function($conditions_manager) {
-
-    class LD_Current_Course_Access extends \ElementorPro\Modules\ThemeBuilder\Conditions\Condition_Base {
-
-        public static function get_type() {
-            return 'singular';
-        }
-
-        public function get_name() {
-            return 'ld_current_course_access';
-        }
-
-        public function get_label() {
-            return 'LearnDash: Access to Current Course';
-        }
-
-        public function check($args) {
-
-            if (!is_user_logged_in()) {
-                return false;
-            }
-
-            $post_id = get_the_ID();
-
-            if (!$post_id) {
-                return false;
-            }
-
-            // Wenn wir bereits auf einer Kursseite sind
-            if (get_post_type($post_id) === 'sfwd-courses') {
-                $course_id = $post_id;
-            } else {
-                // Wenn wir z.B. in einer Lesson / Topic / Loop sind
-                if (function_exists('learndash_get_course_id')) {
-                    $course_id = learndash_get_course_id($post_id);
-                } else {
-                    return false;
-                }
-            }
-
-            if (!$course_id) {
-                return false;
-            }
-
-            return sfwd_lms_has_access($course_id, get_current_user_id());
-        }
-    }
-
-    $conditions_manager
-        ->get_condition('singular')
-        ->register_sub_condition(new LD_Current_Course_Access());
-
-});
 
 // Initialize plugin
 SoulSites_LearnDash_Elementor::get_instance();
