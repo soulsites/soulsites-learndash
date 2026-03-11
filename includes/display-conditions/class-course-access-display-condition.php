@@ -29,7 +29,7 @@ class Course_Has_Access_Display_Condition extends \ElementorPro\Modules\DisplayC
         return 'general';
     }
 
-    public function check( $args ) {
+    public function check( $args ): bool {
         if ( ! is_user_logged_in() ) {
             return false;
         }
@@ -82,7 +82,7 @@ class Course_No_Access_Display_Condition extends \ElementorPro\Modules\DisplayCo
         return 'general';
     }
 
-    public function check( $args ) {
+    public function check( $args ): bool {
         $post_id = get_the_ID();
         if ( ! $post_id ) {
             return false;

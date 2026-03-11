@@ -31,7 +31,7 @@ class Course_Is_Enrolled_Display_Condition extends \ElementorPro\Modules\Display
         return 'general';
     }
 
-    public function check( $args ) {
+    public function check( $args ): bool {
         if ( ! is_user_logged_in() ) {
             return false;
         }
@@ -67,7 +67,7 @@ class Course_Not_Enrolled_Display_Condition extends \ElementorPro\Modules\Displa
         return 'general';
     }
 
-    public function check( $args ) {
+    public function check( $args ): bool {
         $course_id = get_the_ID();
         if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
             return false;
