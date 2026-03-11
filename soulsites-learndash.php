@@ -15,7 +15,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Exit if accessed directly
+	exit; // Exit if accessed directly
 }
 
 // Define plugin constants
@@ -24,307 +24,334 @@ define( 'SOULSITES_LEARNDASH_FILE', __FILE__ );
 define( 'SOULSITES_LEARNDASH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
 
+// Load and initialize settings page (runs always, independent of Elementor/LearnDash)
+require_once SOULSITES_LEARNDASH_PATH . 'includes/class-settings-page.php';
+SoulSites\Settings_Page::get_instance();
+
 /**
  * Main Plugin Class
  */
 final class SoulSites_LearnDash_Elementor {
 
-    /**
-     * Plugin instance
-     *
-     * @var SoulSites_LearnDash_Elementor
-     */
-    private static $instance = null;
+	/**
+	 * Plugin instance
+	 *
+	 * @var SoulSites_LearnDash_Elementor
+	 */
+	private static $instance = null;
 
-    /**
-     * Get plugin instance
-     *
-     * @return SoulSites_LearnDash_Elementor
-     */
-    public static function get_instance() {
-        if ( self::$instance === null ) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
+	/**
+	 * Get plugin instance
+	 *
+	 * @return SoulSites_LearnDash_Elementor
+	 */
+	public static function get_instance() {
+		if ( self::$instance === null ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
 
-    /**
-     * Constructor
-     */
-    private function __construct() {
-        add_action( 'plugins_loaded', [ $this, 'init' ], 20 );
-    }
+	/**
+	 * Constructor
+	 */
+	private function __construct() {
+		add_action( 'plugins_loaded', [ $this, 'init' ], 20 );
+		// Editor disable runs at init, independent of Elementor
+		add_action( 'init', [ $this, 'apply_editor_settings' ] );
+	}
 
-    /**
-     * Initialize plugin
-     */
-    public function init() {
-        // Check if Elementor is installed and activated
-        if ( ! did_action( 'elementor/loaded' ) ) {
-            add_action( 'admin_notices', [ $this, 'admin_notice_missing_elementor' ] );
-            return;
-        }
+	/**
+	 * Remove Block-Editor support from LearnDash post types based on settings.
+	 * Runs on the 'init' hook so post types are already registered.
+	 */
+	public function apply_editor_settings() {
+		$post_type_map = [
+			'disable_editor_courses' => 'sfwd-courses',
+			'disable_editor_lessons' => 'sfwd-lessons',
+			'disable_editor_topics'  => 'sfwd-topic',
+		];
 
-        // Check if Elementor Pro is installed and activated
-        if ( ! defined( 'ELEMENTOR_PRO_VERSION' ) ) {
-            add_action( 'admin_notices', [ $this, 'admin_notice_missing_elementor_pro' ] );
-            return;
-        }
+		foreach ( $post_type_map as $setting => $post_type ) {
+			if ( \SoulSites\Settings_Page::get_option( $setting ) ) {
+				remove_post_type_support( $post_type, 'editor' );
+			}
+		}
+	}
 
-        // Check if LearnDash is installed and activated
-        if ( ! defined( 'LEARNDASH_VERSION' ) ) {
-            add_action( 'admin_notices', [ $this, 'admin_notice_missing_learndash' ] );
-            return;
-        }
+	/**
+	 * Initialize plugin
+	 */
+	public function init() {
+		// Check if Elementor is installed and activated
+		if ( ! did_action( 'elementor/loaded' ) ) {
+			add_action( 'admin_notices', [ $this, 'admin_notice_missing_elementor' ] );
+			return;
+		}
 
-        // Jede Dateigruppe wird erst im jeweiligen Elementor-Hook geladen,
-        // damit Elementors Autoloader alle Basisklassen bereits bereitstellt.
-        add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ], 10, 1 );
-        add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
-        add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
-        add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
-        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
-    }
+		// Check if Elementor Pro is installed and activated
+		if ( ! defined( 'ELEMENTOR_PRO_VERSION' ) ) {
+			add_action( 'admin_notices', [ $this, 'admin_notice_missing_elementor_pro' ] );
+			return;
+		}
 
-    /**
-     * Register Display Conditions
-     * Lädt die Condition-Klassen erst hier, damit ElementorPro\Condition_Base verfügbar ist.
-     */
-    public function register_conditions( $conditions_manager ) {
-        if ( ! $conditions_manager || ! is_object( $conditions_manager ) ) {
-            return;
-        }
+		// Check if LearnDash is installed and activated
+		if ( ! defined( 'LEARNDASH_VERSION' ) ) {
+			add_action( 'admin_notices', [ $this, 'admin_notice_missing_learndash' ] );
+			return;
+		}
 
-        try {
-            // Dateien erst jetzt laden – Elementor Pro ist zu diesem Zeitpunkt vollständig initialisiert
-            $condition_files = [
-                'class-login-status-condition.php',
-                'class-logged-in-condition.php',
-                'class-logged-out-condition.php',
-                'class-course-enrolled-condition.php',
-                'class-course-access-condition.php',
-            ];
-            foreach ( $condition_files as $file ) {
-                $filepath = SOULSITES_LEARNDASH_PATH . 'includes/conditions/' . $file;
-                if ( file_exists( $filepath ) ) {
-                    require_once $filepath;
-                }
-            }
+		// Jede Dateigruppe wird erst im jeweiligen Elementor-Hook geladen,
+		// damit Elementors Autoloader alle Basisklassen bereits bereitstellt.
+		add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ], 10, 1 );
+		add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
+		add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
+		add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
+	}
 
-            $general_condition = $conditions_manager->get_condition( 'general' );
+	/**
+	 * Register Display Conditions
+	 * Lädt die Condition-Klassen erst hier, damit ElementorPro\Condition_Base verfügbar ist.
+	 */
+	public function register_conditions( $conditions_manager ) {
+		if ( ! $conditions_manager || ! is_object( $conditions_manager ) ) {
+			return;
+		}
 
-            if ( ! $general_condition || ! is_object( $general_condition ) ) {
-                return;
-            }
+		try {
+			$general_condition = $conditions_manager->get_condition( 'general' );
 
-            if ( class_exists( 'SoulSites\Conditions\Login_Status_Condition' ) ) {
-                $general_condition->register_sub_condition(
-                    new SoulSites\Conditions\Login_Status_Condition()
-                );
-            }
+			if ( ! $general_condition || ! is_object( $general_condition ) ) {
+				return;
+			}
 
-            if ( class_exists( 'SoulSites\Conditions\Course_Enrolled_Condition' ) ) {
-                $general_condition->register_sub_condition(
-                    new SoulSites\Conditions\Course_Enrolled_Condition()
-                );
-            }
+			// Login-Status (Eingeloggt / Ausgeloggt)
+			if ( \SoulSites\Settings_Page::get_option( 'enable_condition_login_status' ) ) {
+				foreach ( [ 'class-login-status-condition.php', 'class-logged-in-condition.php', 'class-logged-out-condition.php' ] as $file ) {
+					$filepath = SOULSITES_LEARNDASH_PATH . 'includes/conditions/' . $file;
+					if ( file_exists( $filepath ) ) {
+						require_once $filepath;
+					}
+				}
+				if ( class_exists( 'SoulSites\Conditions\Login_Status_Condition' ) ) {
+					$general_condition->register_sub_condition(
+						new SoulSites\Conditions\Login_Status_Condition()
+					);
+				}
+			}
 
-            if ( class_exists( 'SoulSites\Conditions\Course_Access_Condition' ) ) {
-                $general_condition->register_sub_condition(
-                    new SoulSites\Conditions\Course_Access_Condition()
-                );
-            }
-        } catch ( \Exception $e ) {
-            return;
-        }
-    }
+			// Kurs-Einschreibung
+			if ( \SoulSites\Settings_Page::get_option( 'enable_condition_course_enrolled' ) ) {
+				$filepath = SOULSITES_LEARNDASH_PATH . 'includes/conditions/class-course-enrolled-condition.php';
+				if ( file_exists( $filepath ) ) {
+					require_once $filepath;
+				}
+				if ( class_exists( 'SoulSites\Conditions\Course_Enrolled_Condition' ) ) {
+					$general_condition->register_sub_condition(
+						new SoulSites\Conditions\Course_Enrolled_Condition()
+					);
+				}
+			}
 
-    /**
-     * Enqueue Admin CSS
-     */
-    public function enqueue_admin_styles( $hook ) {
+			// Kurs-Zugriffsrecht
+			if ( \SoulSites\Settings_Page::get_option( 'enable_condition_course_access' ) ) {
+				$filepath = SOULSITES_LEARNDASH_PATH . 'includes/conditions/class-course-access-condition.php';
+				if ( file_exists( $filepath ) ) {
+					require_once $filepath;
+				}
+				if ( class_exists( 'SoulSites\Conditions\Course_Access_Condition' ) ) {
+					$general_condition->register_sub_condition(
+						new SoulSites\Conditions\Course_Access_Condition()
+					);
+				}
+			}
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
 
-        $screen = get_current_screen();
+	/**
+	 * Enqueue Admin CSS
+	 */
+	public function enqueue_admin_styles( $hook ) {
+		$screen = get_current_screen();
 
-        // Nur im LearnDash Kurs Post Type laden
-        if ( isset( $screen->post_type ) && $screen->post_type === 'sfwd-courses' ) {
+		// Nur im LearnDash Kurs Post Type laden
+		if ( isset( $screen->post_type ) && $screen->post_type === 'sfwd-courses' ) {
+			wp_enqueue_style(
+				'soulsites-learndash-admin',
+				SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
+				[],
+				SOULSITES_LEARNDASH_VERSION
+			);
+		}
+	}
 
-            wp_enqueue_style(
-                'soulsites-learndash-admin',
-                SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
-                [],
-                SOULSITES_LEARNDASH_VERSION
-            );
+	/**
+	 * Register Dynamic Tags
+	 * Lädt die Tag-Klassen erst hier, damit Elementor\Core\DynamicTags\Tag verfügbar ist.
+	 */
+	public function register_dynamic_tags( $dynamic_tags_manager ) {
+		if ( ! $dynamic_tags_manager || ! is_object( $dynamic_tags_manager ) ) {
+			return;
+		}
 
-        }
-    }
+		try {
+			// Map: setting key => [ file, class ]
+			$tag_map = [
+				'enable_tag_course_purchase_status'   => [ 'class-course-purchase-status.php',  'SoulSites\Dynamic_Tags\Course_Purchase_Status' ],
+				'enable_tag_course_price'             => [ 'class-course-price.php',             'SoulSites\Dynamic_Tags\Course_Price' ],
+				'enable_tag_course_enrollment_status' => [ 'class-course-enrollment-status.php', 'SoulSites\Dynamic_Tags\Course_Enrollment_Status' ],
+				'enable_tag_course_progress'          => [ 'class-course-progress.php',          'SoulSites\Dynamic_Tags\Course_Progress' ],
+				'enable_tag_course_completion_date'   => [ 'class-course-completion-date.php',   'SoulSites\Dynamic_Tags\Course_Completion_Date' ],
+				'enable_tag_tutor_name'               => [ 'class-tutor-name.php',               'SoulSites\Dynamic_Tags\Tutor_Name' ],
+				'enable_tag_tutor_bio'                => [ 'class-tutor-bio.php',                'SoulSites\Dynamic_Tags\Tutor_Bio' ],
+				'enable_tag_tutor_foto'               => [ 'class-tutor-foto.php',               'SoulSites\Dynamic_Tags\Tutor_Foto' ],
+				'enable_tag_tutor_link'               => [ 'class-tutor-link.php',               'SoulSites\Dynamic_Tags\Tutor_Link' ],
+			];
 
-    /**
-     * Register Dynamic Tags
-     * Lädt die Tag-Klassen erst hier, damit Elementor\Core\DynamicTags\Tag verfügbar ist.
-     */
-    public function register_dynamic_tags( $dynamic_tags_manager ) {
-        if ( ! $dynamic_tags_manager || ! is_object( $dynamic_tags_manager ) ) {
-            return;
-        }
+			// Collect active tags
+			$active_classes = [];
+			foreach ( $tag_map as $setting => [ $file, $class ] ) {
+				if ( ! \SoulSites\Settings_Page::get_option( $setting ) ) {
+					continue;
+				}
+				$filepath = SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/' . $file;
+				if ( file_exists( $filepath ) ) {
+					require_once $filepath;
+				}
+				$active_classes[] = $class;
+			}
 
-        try {
-            // Dateien erst jetzt laden – Elementors DynamicTags-Modul ist bereit
-            $tag_files = [
-                'class-course-purchase-status.php',
-                'class-course-price.php',
-                'class-course-enrollment-status.php',
-                'class-course-progress.php',
-                'class-course-completion-date.php',
-                'class-tutor-name.php',
-                'class-tutor-bio.php',
-                'class-tutor-foto.php',
-                'class-tutor-link.php',
-            ];
-            foreach ( $tag_files as $file ) {
-                $filepath = SOULSITES_LEARNDASH_PATH . 'includes/dynamic-tags/' . $file;
-                if ( file_exists( $filepath ) ) {
-                    require_once $filepath;
-                }
-            }
+			// Only register the group when at least one tag is active
+			if ( empty( $active_classes ) ) {
+				return;
+			}
 
-            $dynamic_tags_manager->register_group( 'learndash', [
-                'title' => esc_html__( 'LearnDash', 'soulsites-learndash' ),
-            ] );
+			$dynamic_tags_manager->register_group( 'learndash', [
+				'title' => esc_html__( 'LearnDash', 'soulsites-learndash' ),
+			] );
 
-            $tag_classes = [
-                'SoulSites\Dynamic_Tags\Course_Purchase_Status',
-                'SoulSites\Dynamic_Tags\Course_Price',
-                'SoulSites\Dynamic_Tags\Course_Enrollment_Status',
-                'SoulSites\Dynamic_Tags\Course_Progress',
-                'SoulSites\Dynamic_Tags\Course_Completion_Date',
-                'SoulSites\Dynamic_Tags\Tutor_Name',
-                'SoulSites\Dynamic_Tags\Tutor_Bio',
-                'SoulSites\Dynamic_Tags\Tutor_Foto',
-                'SoulSites\Dynamic_Tags\Tutor_Link',
-            ];
+			foreach ( $active_classes as $class ) {
+				if ( class_exists( $class ) ) {
+					$dynamic_tags_manager->register( new $class() );
+				}
+			}
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
 
-            foreach ( $tag_classes as $class ) {
-                if ( class_exists( $class ) ) {
-                    $dynamic_tags_manager->register( new $class() );
-                }
-            }
-        } catch ( \Exception $e ) {
-            return;
-        }
-    }
+	/**
+	 * Register Elementor Widgets
+	 * Lädt die Widget-Klassen erst hier, damit Elementor\Widget_Base verfügbar ist.
+	 */
+	public function register_widgets( $widgets_manager ) {
+		if ( ! $widgets_manager || ! is_object( $widgets_manager ) ) {
+			return;
+		}
 
-    /**
-     * Register Elementor Widgets
-     * Lädt die Widget-Klassen erst hier, damit Elementor\Widget_Base verfügbar ist.
-     */
-    public function register_widgets( $widgets_manager ) {
-        if ( ! $widgets_manager || ! is_object( $widgets_manager ) ) {
-            return;
-        }
+		try {
+			$widget_map = [
+				'enable_widget_progress_bar'   => [ 'class-course-progress-bar.php', 'SoulSites\Widgets\Course_Progress_Bar' ],
+				'enable_widget_course_content' => [ 'class-course-content.php',      'SoulSites\Widgets\Course_Content' ],
+			];
 
-        try {
-            // Dateien erst jetzt laden – Elementor\Widget_Base ist garantiert verfügbar
-            $widget_files = [
-                'class-course-progress-bar.php',
-                'class-course-content.php',
-            ];
-            foreach ( $widget_files as $file ) {
-                $filepath = SOULSITES_LEARNDASH_PATH . 'includes/widgets/' . $file;
-                if ( file_exists( $filepath ) ) {
-                    require_once $filepath;
-                }
-            }
+			foreach ( $widget_map as $setting => [ $file, $class ] ) {
+				if ( ! \SoulSites\Settings_Page::get_option( $setting ) ) {
+					continue;
+				}
+				$filepath = SOULSITES_LEARNDASH_PATH . 'includes/widgets/' . $file;
+				if ( file_exists( $filepath ) ) {
+					require_once $filepath;
+				}
+				if ( class_exists( $class ) ) {
+					$widgets_manager->register( new $class() );
+				}
+			}
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
 
-            $widget_classes = [
-                'SoulSites\Widgets\Course_Progress_Bar',
-                'SoulSites\Widgets\Course_Content',
-            ];
+	/**
+	 * Initialize Query Filters
+	 */
+	public function init_query_filters() {
+		if ( ! \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' ) ) {
+			return;
+		}
 
-            foreach ( $widget_classes as $class ) {
-                if ( class_exists( $class ) ) {
-                    $widgets_manager->register( new $class() );
-                }
-            }
-        } catch ( \Exception $e ) {
-            return;
-        }
-    }
+		try {
+			$query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
+			if ( file_exists( $query_file ) ) {
+				require_once $query_file;
+			}
 
-    /**
-     * Initialize Query Filters
-     */
-    public function init_query_filters() {
-        try {
-            $query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
-            if ( file_exists( $query_file ) ) {
-                require_once $query_file;
-            }
+			if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+				return;
+			}
 
-            if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
-                return;
-            }
+			new SoulSites\Query\Course_Purchase_Query();
 
-            new SoulSites\Query\Course_Purchase_Query();
+			add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+			add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
 
-            add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
-            add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
-        } catch ( \Exception $e ) {
-            return;
-        }
-    }
+	/**
+	 * Add Query Controls to Loop Widgets
+	 */
+	public function add_query_controls( $element, $args ) {
+		if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+			return;
+		}
 
-    /**
-     * Add Query Controls to Loop Widgets
-     */
-    public function add_query_controls( $element, $args ) {
-        if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
-            return;
-        }
+		try {
+			SoulSites\Query\Course_Purchase_Query::register_controls( $element );
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
 
-        try {
-            SoulSites\Query\Course_Purchase_Query::register_controls( $element );
-        } catch ( \Exception $e ) {
-            // Bei Fehler nichts tun
-            return;
-        }
-    }
+	/**
+	 * Admin notice for missing Elementor
+	 */
+	public function admin_notice_missing_elementor() {
+		$message = sprintf(
+			esc_html__( '"%1$s" benötigt "%2$s" um zu funktionieren.', 'soulsites-learndash' ),
+			'<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
+			'<strong>' . esc_html__( 'Elementor', 'soulsites-learndash' ) . '</strong>'
+		);
+		echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
+	}
 
-    /**
-     * Admin notice for missing Elementor
-     */
-    public function admin_notice_missing_elementor() {
-        $message = sprintf(
-            esc_html__( '"%1$s" benötigt "%2$s" um zu funktionieren.', 'soulsites-learndash' ),
-            '<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
-            '<strong>' . esc_html__( 'Elementor', 'soulsites-learndash' ) . '</strong>'
-        );
-        echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
-    }
+	/**
+	 * Admin notice for missing Elementor Pro
+	 */
+	public function admin_notice_missing_elementor_pro() {
+		$message = sprintf(
+			esc_html__( '"%1$s" benötigt "%2$s" um zu funktionieren.', 'soulsites-learndash' ),
+			'<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
+			'<strong>' . esc_html__( 'Elementor Pro', 'soulsites-learndash' ) . '</strong>'
+		);
+		echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
+	}
 
-    /**
-     * Admin notice for missing Elementor Pro
-     */
-    public function admin_notice_missing_elementor_pro() {
-        $message = sprintf(
-            esc_html__( '"%1$s" benötigt "%2$s" um zu funktionieren.', 'soulsites-learndash' ),
-            '<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
-            '<strong>' . esc_html__( 'Elementor Pro', 'soulsites-learndash' ) . '</strong>'
-        );
-        echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
-    }
-
-    /**
-     * Admin notice for missing LearnDash
-     */
-    public function admin_notice_missing_learndash() {
-        $message = sprintf(
-            esc_html__( '"%1$s" benötigt "%2$s" um zu funktionieren.', 'soulsites-learndash' ),
-            '<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
-            '<strong>' . esc_html__( 'LearnDash LMS', 'soulsites-learndash' ) . '</strong>'
-        );
-        echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
-    }
+	/**
+	 * Admin notice for missing LearnDash
+	 */
+	public function admin_notice_missing_learndash() {
+		$message = sprintf(
+			esc_html__( '"%1$s" benötigt "%2$s" um zu funktionieren.', 'soulsites-learndash' ),
+			'<strong>' . esc_html__( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ) . '</strong>',
+			'<strong>' . esc_html__( 'LearnDash LMS', 'soulsites-learndash' ) . '</strong>'
+		);
+		echo '<div class="notice notice-warning is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
+	}
 }
 
 // Initialize plugin
