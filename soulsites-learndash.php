@@ -104,6 +104,7 @@ final class SoulSites_LearnDash_Elementor {
 		// Jede Dateigruppe wird erst im jeweiligen Elementor-Hook geladen,
 		// damit Elementors Autoloader alle Basisklassen bereits bereitstellt.
 		add_action( 'elementor/theme/register_conditions', [ $this, 'register_conditions' ], 10, 1 );
+		add_action( 'elementor/display_conditions/register', [ $this, 'register_display_conditions' ], 10, 1 );
 		add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
 		add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
 		add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
@@ -164,6 +165,44 @@ final class SoulSites_LearnDash_Elementor {
 					$general_condition->register_sub_condition(
 						new SoulSites\Conditions\Course_Access_Condition()
 					);
+				}
+			}
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
+
+	/**
+	 * Register Element Display Conditions (per-widget visibility, Elementor Pro 3.19+)
+	 * Verwendet einen anderen Hook und eine andere Basisklasse als Theme Builder Conditions.
+	 */
+	public function register_display_conditions( $conditions_manager ) {
+		if ( ! $conditions_manager || ! is_object( $conditions_manager ) ) {
+			return;
+		}
+
+		try {
+			// Kurs-Einschreibung (Eingeschrieben / Nicht eingeschrieben)
+			if ( \SoulSites\Settings_Page::get_option( 'enable_condition_course_enrolled' ) ) {
+				$filepath = SOULSITES_LEARNDASH_PATH . 'includes/display-conditions/class-course-enrolled-display-condition.php';
+				if ( file_exists( $filepath ) ) {
+					require_once $filepath;
+				}
+				if ( class_exists( 'SoulSites\Display_Conditions\Course_Is_Enrolled_Display_Condition' ) ) {
+					$conditions_manager->register_condition_instance( new SoulSites\Display_Conditions\Course_Is_Enrolled_Display_Condition() );
+					$conditions_manager->register_condition_instance( new SoulSites\Display_Conditions\Course_Not_Enrolled_Display_Condition() );
+				}
+			}
+
+			// Kurs-Zugriffsrecht (Zugang / Kein Zugang)
+			if ( \SoulSites\Settings_Page::get_option( 'enable_condition_course_access' ) ) {
+				$filepath = SOULSITES_LEARNDASH_PATH . 'includes/display-conditions/class-course-access-display-condition.php';
+				if ( file_exists( $filepath ) ) {
+					require_once $filepath;
+				}
+				if ( class_exists( 'SoulSites\Display_Conditions\Course_Has_Access_Display_Condition' ) ) {
+					$conditions_manager->register_condition_instance( new SoulSites\Display_Conditions\Course_Has_Access_Display_Condition() );
+					$conditions_manager->register_condition_instance( new SoulSites\Display_Conditions\Course_No_Access_Display_Condition() );
 				}
 			}
 		} catch ( \Exception $e ) {
