@@ -29,6 +29,10 @@ class Course_Has_Access_Display_Condition extends \ElementorPro\Modules\DisplayC
         return 'general';
     }
 
+    public function get_options() {
+        return [];
+    }
+
     public function check( $args ): bool {
         if ( ! is_user_logged_in() ) {
             return false;
@@ -80,6 +84,10 @@ class Course_No_Access_Display_Condition extends \ElementorPro\Modules\DisplayCo
 
     public function get_group() {
         return 'general';
+    }
+
+    public function get_options() {
+        return [];
     }
 
     public function check( $args ): bool {

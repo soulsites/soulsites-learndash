@@ -31,6 +31,10 @@ class Course_Is_Enrolled_Display_Condition extends \ElementorPro\Modules\Display
         return 'general';
     }
 
+    public function get_options() {
+        return [];
+    }
+
     public function check( $args ): bool {
         if ( ! is_user_logged_in() ) {
             return false;
@@ -65,6 +69,10 @@ class Course_Not_Enrolled_Display_Condition extends \ElementorPro\Modules\Displa
 
     public function get_group() {
         return 'general';
+    }
+
+    public function get_options() {
+        return [];
     }
 
     public function check( $args ): bool {
