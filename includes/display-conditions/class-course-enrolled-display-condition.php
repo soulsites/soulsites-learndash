@@ -5,27 +5,33 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-use ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base;
+// Guard: base class must exist before we can define our classes.
+// The hook 'elementor/display_conditions/register' fires from within Elementor Pro's
+// DisplayConditions module, so the base class should already be autoloaded at this point.
+// If not (e.g. wrong version or module not loaded), we skip silently.
+if ( ! class_exists( '\ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base' ) ) {
+    return;
+}
 
 /**
  * Display Condition: Course Is Enrolled
  * Zeigt ein Element nur wenn der Benutzer im aktuellen Kurs eingeschrieben ist.
  */
-class Course_Is_Enrolled_Display_Condition extends Condition_Base {
+class Course_Is_Enrolled_Display_Condition extends \ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base {
 
-    public function get_name(): string {
+    public function get_name() {
         return 'learndash_course_is_enrolled';
     }
 
-    public function get_label(): string {
+    public function get_label() {
         return esc_html__( 'LearnDash: Course Enrolled', 'soulsites-learndash' );
     }
 
-    public function get_group(): string {
+    public function get_group() {
         return 'general';
     }
 
-    public function check( $args ): bool {
+    public function check( $args ) {
         if ( ! is_user_logged_in() ) {
             return false;
         }
@@ -47,21 +53,21 @@ class Course_Is_Enrolled_Display_Condition extends Condition_Base {
  * Display Condition: Course Not Enrolled
  * Zeigt ein Element nur wenn der Benutzer NICHT im aktuellen Kurs eingeschrieben ist.
  */
-class Course_Not_Enrolled_Display_Condition extends Condition_Base {
+class Course_Not_Enrolled_Display_Condition extends \ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base {
 
-    public function get_name(): string {
+    public function get_name() {
         return 'learndash_course_not_enrolled';
     }
 
-    public function get_label(): string {
+    public function get_label() {
         return esc_html__( 'LearnDash: Course Not Enrolled', 'soulsites-learndash' );
     }
 
-    public function get_group(): string {
+    public function get_group() {
         return 'general';
     }
 
-    public function check( $args ): bool {
+    public function check( $args ) {
         $course_id = get_the_ID();
         if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
             return false;
