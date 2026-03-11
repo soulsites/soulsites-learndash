@@ -1,0 +1,409 @@
+<?php
+/**
+ * Settings Page for SoulSites LearnDash for Elementor
+ *
+ * @package SoulSites_LearnDash
+ */
+
+namespace SoulSites;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Settings Page Class
+ */
+class Settings_Page {
+
+	const OPTION_NAME = 'soulsites_learndash_settings';
+
+	/**
+	 * @var Settings_Page
+	 */
+	private static $instance = null;
+
+	/**
+	 * @return Settings_Page
+	 */
+	public static function get_instance() {
+		if ( self::$instance === null ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Constructor
+	 */
+	private function __construct() {
+		add_action( 'admin_menu', [ $this, 'add_menu_page' ] );
+		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
+	}
+
+	/**
+	 * Add submenu page under LearnDash (or under Settings as fallback)
+	 */
+	public function add_menu_page() {
+		if ( defined( 'LEARNDASH_VERSION' ) ) {
+			add_submenu_page(
+				'learndash-lms',
+				esc_html__( 'SoulSites Einstellungen', 'soulsites-learndash' ),
+				esc_html__( 'SoulSites Settings', 'soulsites-learndash' ),
+				'manage_options',
+				'soulsites-learndash-settings',
+				[ $this, 'render_page' ]
+			);
+		} else {
+			add_options_page(
+				esc_html__( 'SoulSites LearnDash', 'soulsites-learndash' ),
+				esc_html__( 'SoulSites LearnDash', 'soulsites-learndash' ),
+				'manage_options',
+				'soulsites-learndash-settings',
+				[ $this, 'render_page' ]
+			);
+		}
+	}
+
+	/**
+	 * Register settings via WordPress Settings API
+	 */
+	public function register_settings() {
+		register_setting(
+			'soulsites_learndash_group',
+			self::OPTION_NAME,
+			[ 'sanitize_callback' => [ $this, 'sanitize_settings' ] ]
+		);
+	}
+
+	/**
+	 * Default values for all settings.
+	 * All features are enabled by default to preserve existing behaviour.
+	 *
+	 * @return array
+	 */
+	public static function get_defaults() {
+		return [
+			// Editor
+			'disable_editor_courses'              => 0,
+			'disable_editor_lessons'              => 0,
+			'disable_editor_topics'               => 0,
+			// Display Conditions
+			'enable_condition_login_status'       => 1,
+			'enable_condition_course_enrolled'    => 1,
+			'enable_condition_course_access'      => 1,
+			// Dynamic Tags – Kurs
+			'enable_tag_course_purchase_status'   => 1,
+			'enable_tag_course_price'             => 1,
+			'enable_tag_course_enrollment_status' => 1,
+			'enable_tag_course_progress'          => 1,
+			'enable_tag_course_completion_date'   => 1,
+			// Dynamic Tags – Tutor (ACF)
+			'enable_tag_tutor_name'               => 1,
+			'enable_tag_tutor_bio'                => 1,
+			'enable_tag_tutor_foto'               => 1,
+			'enable_tag_tutor_link'               => 1,
+			// Widgets
+			'enable_widget_progress_bar'          => 1,
+			'enable_widget_course_content'        => 1,
+			// Query Filter
+			'enable_query_course_purchase'        => 1,
+		];
+	}
+
+	/**
+	 * Read a single setting value with default fallback.
+	 *
+	 * @param string $key     Setting key.
+	 * @param mixed  $default Optional explicit default (overrides built-in defaults).
+	 * @return mixed
+	 */
+	public static function get_option( $key, $default = null ) {
+		$options  = get_option( self::OPTION_NAME, [] );
+		$defaults = self::get_defaults();
+
+		if ( array_key_exists( $key, $options ) ) {
+			return $options[ $key ];
+		}
+
+		if ( $default !== null ) {
+			return $default;
+		}
+
+		return isset( $defaults[ $key ] ) ? $defaults[ $key ] : false;
+	}
+
+	/**
+	 * Sanitize settings before saving.
+	 *
+	 * @param array $input Raw input from form.
+	 * @return array
+	 */
+	public function sanitize_settings( $input ) {
+		$sanitized  = [];
+		$bool_keys  = array_keys( self::get_defaults() );
+
+		foreach ( $bool_keys as $key ) {
+			$sanitized[ $key ] = ! empty( $input[ $key ] ) ? 1 : 0;
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Enqueue CSS only on our settings page.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_admin_styles( $hook ) {
+		if ( strpos( $hook, 'soulsites-learndash-settings' ) === false ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'soulsites-learndash-admin',
+			SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
+			[],
+			SOULSITES_LEARNDASH_VERSION
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Rendering helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Render a single checkbox row.
+	 *
+	 * @param string $key         Option key.
+	 * @param string $label       Visible label.
+	 * @param string $description Optional description below the checkbox.
+	 */
+	private function render_checkbox( $key, $label, $description = '' ) {
+		$value = self::get_option( $key );
+		$name  = esc_attr( self::OPTION_NAME . '[' . $key . ']' );
+		?>
+		<label class="soulsites-toggle">
+			<input type="checkbox" name="<?php echo $name; ?>" value="1" <?php checked( 1, $value ); ?> />
+			<span class="soulsites-toggle-label"><?php echo esc_html( $label ); ?></span>
+		</label>
+		<?php if ( $description ) : ?>
+			<p class="description"><?php echo esc_html( $description ); ?></p>
+		<?php endif;
+	}
+
+	/**
+	 * Render a settings section card.
+	 *
+	 * @param string   $dashicon   Dashicons class name (without "dashicons-").
+	 * @param string   $title      Section title.
+	 * @param string   $intro      Short introductory sentence.
+	 * @param callable $body_cb    Callback that renders the body content.
+	 */
+	private function render_section( $dashicon, $title, $intro, $body_cb ) {
+		?>
+		<div class="soulsites-settings-section">
+			<div class="soulsites-section-header">
+				<span class="soulsites-section-icon dashicons dashicons-<?php echo esc_attr( $dashicon ); ?>"></span>
+				<div>
+					<h2><?php echo esc_html( $title ); ?></h2>
+					<p><?php echo esc_html( $intro ); ?></p>
+				</div>
+			</div>
+			<div class="soulsites-section-body">
+				<?php $body_cb(); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	// -------------------------------------------------------------------------
+	// Page render
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Render the full settings page.
+	 */
+	public function render_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		?>
+		<div class="wrap soulsites-settings-wrap">
+
+			<div class="soulsites-settings-header">
+				<h1><?php esc_html_e( 'SoulSites LearnDash for Elementor', 'soulsites-learndash' ); ?></h1>
+				<span class="soulsites-version">v<?php echo esc_html( SOULSITES_LEARNDASH_VERSION ); ?></span>
+			</div>
+
+			<?php settings_errors( 'soulsites_learndash_group' ); ?>
+
+			<form method="post" action="options.php">
+				<?php settings_fields( 'soulsites_learndash_group' ); ?>
+
+				<?php
+				// -----------------------------------------------------------------
+				// 1. Block-Editor Einstellungen
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'edit',
+					__( 'Block-Editor Einstellungen', 'soulsites-learndash' ),
+					__( 'Deaktiviert den Gutenberg Block-Editor für ausgewählte LearnDash Post-Typen. Sinnvoll, wenn Inhalte ausschließlich mit Elementor bearbeitet werden sollen.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'disable_editor_courses',
+							__( 'Kurse (sfwd-courses)', 'soulsites-learndash' ),
+							__( 'Entfernt den Block-Editor für LearnDash Kurse und zeigt stattdessen den klassischen Editor an.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'disable_editor_lessons',
+							__( 'Lektionen (sfwd-lessons)', 'soulsites-learndash' ),
+							__( 'Entfernt den Block-Editor für LearnDash Lektionen.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'disable_editor_topics',
+							__( 'Themen (sfwd-topic)', 'soulsites-learndash' ),
+							__( 'Entfernt den Block-Editor für LearnDash Themen.', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 2. Elementor Anzeigebedingungen
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'visibility',
+					__( 'Elementor Anzeigebedingungen', 'soulsites-learndash' ),
+					__( 'Steuert, welche LearnDash-Anzeigebedingungen in Elementor Pro (Display Conditions) verfügbar sind.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'enable_condition_login_status',
+							__( 'Login-Status (Eingeloggt / Ausgeloggt)', 'soulsites-learndash' ),
+							__( 'Zeigt oder versteckt Elementor-Blöcke abhängig davon, ob der Besucher eingeloggt ist.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_condition_course_enrolled',
+							__( 'Kurs-Einschreibung (Eingeschrieben / Nicht eingeschrieben)', 'soulsites-learndash' ),
+							__( 'Zeigt oder versteckt Blöcke abhängig vom Einschreibestatus des Benutzers im aktuellen Kurs (nur auf Kursseiten).', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_condition_course_access',
+							__( 'Kurs-Zugriffsrecht (Zugang / Kein Zugang)', 'soulsites-learndash' ),
+							__( 'Wie die Einschreibung, funktioniert aber auch auf Lektionen und Themen (prüft den Kurszugang).', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 3. Dynamische Tags
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'tag',
+					__( 'Dynamische Tags', 'soulsites-learndash' ),
+					__( 'Aktiviert oder deaktiviert einzelne LearnDash Dynamic Tags in Elementor. Deaktivierte Tags erscheinen nicht mehr in der Tag-Auswahl.', 'soulsites-learndash' ),
+					function () {
+						echo '<h3>' . esc_html__( 'Kurs-Tags', 'soulsites-learndash' ) . '</h3>';
+						$this->render_checkbox(
+							'enable_tag_course_purchase_status',
+							__( 'Kauf-Status', 'soulsites-learndash' ),
+							__( 'Zeigt konfigurierbaren Text basierend auf dem Kaufstatus des Benutzers ("Bereits gekauft" / "Noch nicht gekauft").', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_course_price',
+							__( 'Kurs-Preis', 'soulsites-learndash' ),
+							__( 'Gibt den Preis des aktuellen Kurses aus, optional mit Währungssymbol.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_course_enrollment_status',
+							__( 'Einschreibe-Status', 'soulsites-learndash' ),
+							__( 'Zeigt den Einschreibestatus des Benutzers als konfigurierbaren Text (Eingeschrieben / Nicht eingeschrieben / Bitte einloggen).', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_course_progress',
+							__( 'Kursfortschritt (%)', 'soulsites-learndash' ),
+							__( 'Gibt den prozentualen Lernfortschritt des aktuellen Benutzers im Kurs aus.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_course_completion_date',
+							__( 'Abschlussdatum', 'soulsites-learndash' ),
+							__( 'Zeigt das Datum, an dem der Benutzer den Kurs abgeschlossen hat. Datumsformat konfigurierbar.', 'soulsites-learndash' )
+						);
+
+						echo '<h3>'
+							. esc_html__( 'Tutor-Tags', 'soulsites-learndash' )
+							. '<span class="soulsites-badge soulsites-badge-acf">ACF</span>'
+							. '</h3>';
+						echo '<p class="description soulsites-info-box">'
+							. esc_html__( 'Diese Tags erfordern das Plugin "Advanced Custom Fields" (ACF) und entsprechende Felder an den Tutor-Beiträgen (tutor, name, bio_kurz, profilbild).', 'soulsites-learndash' )
+							. '</p>';
+						$this->render_checkbox(
+							'enable_tag_tutor_name',
+							__( 'Tutor-Name', 'soulsites-learndash' ),
+							__( 'Gibt den Namen des zugeordneten Tutors aus (ACF-Feld "name" am Tutor-Beitrag).', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_tutor_bio',
+							__( 'Tutor-Bio', 'soulsites-learndash' ),
+							__( 'Gibt die Kurzbiografie des Tutors aus (ACF-Feld "bio_kurz").', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_tutor_foto',
+							__( 'Tutor-Foto', 'soulsites-learndash' ),
+							__( 'Gibt das Profilbild des Tutors aus (ACF-Feld "profilbild", Fallback: WordPress Beitragsbild).', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_tutor_link',
+							__( 'Tutor-Link', 'soulsites-learndash' ),
+							__( 'Gibt den Permalink zum Tutor-Beitrag aus.', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 4. Elementor Widgets
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'screenoptions',
+					__( 'Elementor Widgets', 'soulsites-learndash' ),
+					__( 'Aktiviert oder deaktiviert benutzerdefinierte LearnDash-Widgets in der Elementor-Widget-Bibliothek (Kategorie "Theme Elements").', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'enable_widget_progress_bar',
+							__( 'Kursfortschritts-Balken', 'soulsites-learndash' ),
+							__( 'Visualisiert den Kursfortschritt des Benutzers als animierten Balken. Farben, Höhe, Position und Texte sind vollständig über Elementor-Steuerelemente konfigurierbar.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_widget_course_content',
+							__( 'Kurs-Inhalt (reiner Text)', 'soulsites-learndash' ),
+							__( 'Zeigt den post_content eines Kurses ohne die von LearnDash automatisch hinzugefügten Elemente (Kursliste, Navigation etc.).', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 5. Loop-Filter / Abfragen
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'filter',
+					__( 'Loop-Abfragen & Filter', 'soulsites-learndash' ),
+					__( 'Erweitert Elementor Loop-Widgets (Loop Grid, Loop Carousel) um LearnDash-spezifische Abfrageoptionen.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'enable_query_course_purchase',
+							__( 'Kauf-Status Filter', 'soulsites-learndash' ),
+							__( 'Fügt Loop-Widgets einen Filter hinzu, um Kurse nach dem Kauf-/Einschreibestatus des aktuellen Benutzers zu filtern (Gekauft / Nicht gekauft). Mit eingebautem Performance-Cache.', 'soulsites-learndash' )
+						);
+					}
+				);
+				?>
+
+				<div class="soulsites-settings-footer">
+					<?php submit_button( esc_html__( 'Einstellungen speichern', 'soulsites-learndash' ), 'primary large', 'submit', false ); ?>
+				</div>
+
+			</form>
+		</div>
+		<?php
+	}
+}
