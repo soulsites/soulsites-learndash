@@ -181,6 +181,11 @@ final class SoulSites_LearnDash_Elementor {
 			return;
 		}
 
+		// Basisklasse muss vorhanden sein – fehlt sie (falsche Version o.ä.), überspringen.
+		if ( ! class_exists( '\ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base' ) ) {
+			return;
+		}
+
 		try {
 			// Kurs-Einschreibung (Eingeschrieben / Nicht eingeschrieben)
 			if ( \SoulSites\Settings_Page::get_option( 'enable_condition_course_enrolled' ) ) {
@@ -205,7 +210,8 @@ final class SoulSites_LearnDash_Elementor {
 					$conditions_manager->register_condition_instance( new SoulSites\Display_Conditions\Course_No_Access_Display_Condition() );
 				}
 			}
-		} catch ( \Exception $e ) {
+		} catch ( \Throwable $e ) {
+			// Fängt sowohl \Exception als auch PHP \Error (z.B. "Class not found").
 			return;
 		}
 	}

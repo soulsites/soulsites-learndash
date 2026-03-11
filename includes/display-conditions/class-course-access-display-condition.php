@@ -5,28 +5,31 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-use ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base;
+// Guard: base class must exist before we can define our classes.
+if ( ! class_exists( '\ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base' ) ) {
+    return;
+}
 
 /**
  * Display Condition: Has Course Access
  * Zeigt ein Element wenn der Benutzer Zugang zum aktuellen Kurs hat.
  * Funktioniert auf Kurs-, Lektions- und Thema-Seiten.
  */
-class Course_Has_Access_Display_Condition extends Condition_Base {
+class Course_Has_Access_Display_Condition extends \ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base {
 
-    public function get_name(): string {
+    public function get_name() {
         return 'learndash_course_has_access';
     }
 
-    public function get_label(): string {
+    public function get_label() {
         return esc_html__( 'LearnDash: Has Course Access', 'soulsites-learndash' );
     }
 
-    public function get_group(): string {
+    public function get_group() {
         return 'general';
     }
 
-    public function check( $args ): bool {
+    public function check( $args ) {
         if ( ! is_user_logged_in() ) {
             return false;
         }
@@ -48,7 +51,7 @@ class Course_Has_Access_Display_Condition extends Condition_Base {
         return (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
     }
 
-    private function get_current_course_id( int $post_id ): int {
+    private function get_current_course_id( $post_id ) {
         if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
             return $post_id;
         }
@@ -65,21 +68,21 @@ class Course_Has_Access_Display_Condition extends Condition_Base {
  * Display Condition: No Course Access
  * Zeigt ein Element wenn der Benutzer KEINEN Zugang zum aktuellen Kurs hat.
  */
-class Course_No_Access_Display_Condition extends Condition_Base {
+class Course_No_Access_Display_Condition extends \ElementorPro\Modules\DisplayConditions\Conditions\Base\Condition_Base {
 
-    public function get_name(): string {
+    public function get_name() {
         return 'learndash_course_no_access';
     }
 
-    public function get_label(): string {
+    public function get_label() {
         return esc_html__( 'LearnDash: No Course Access', 'soulsites-learndash' );
     }
 
-    public function get_group(): string {
+    public function get_group() {
         return 'general';
     }
 
-    public function check( $args ): bool {
+    public function check( $args ) {
         $post_id = get_the_ID();
         if ( ! $post_id ) {
             return false;
@@ -101,7 +104,7 @@ class Course_No_Access_Display_Condition extends Condition_Base {
         return ! sfwd_lms_has_access( $course_id, get_current_user_id() );
     }
 
-    private function get_current_course_id( int $post_id ): int {
+    private function get_current_course_id( $post_id ) {
         if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
             return $post_id;
         }
