@@ -14,7 +14,7 @@ class Logged_Out_Condition extends \ElementorPro\Modules\ThemeBuilder\Conditions
      * Get condition type
      */
     public static function get_type() {
-        return 'general';
+        return 'login_status';
     }
 
     /**
