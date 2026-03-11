@@ -45,7 +45,7 @@ class Course_Access_Condition extends \ElementorPro\Modules\ThemeBuilder\Conditi
 class Course_Has_Access_Condition extends \ElementorPro\Modules\ThemeBuilder\Conditions\Condition_Base {
 
     public static function get_type() {
-        return 'general';
+        return 'course_access';
     }
 
     public function get_name() {
@@ -108,7 +108,7 @@ class Course_Has_Access_Condition extends \ElementorPro\Modules\ThemeBuilder\Con
 class Course_No_Access_Condition extends \ElementorPro\Modules\ThemeBuilder\Conditions\Condition_Base {
 
     public static function get_type() {
-        return 'general';
+        return 'course_access';
     }
 
     public function get_name() {

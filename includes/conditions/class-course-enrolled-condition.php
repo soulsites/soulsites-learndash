@@ -56,7 +56,7 @@ class Course_Is_Enrolled_Condition extends \ElementorPro\Modules\ThemeBuilder\Co
      * Get condition type
      */
     public static function get_type() {
-        return 'general';
+        return 'course_enrolled';
     }
 
     /**
@@ -109,7 +109,7 @@ class Course_Not_Enrolled_Condition extends \ElementorPro\Modules\ThemeBuilder\C
      * Get condition type
      */
     public static function get_type() {
-        return 'general';
+        return 'course_enrolled';
     }
 
     /**
