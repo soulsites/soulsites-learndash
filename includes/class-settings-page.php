@@ -107,6 +107,7 @@ class Settings_Page {
 			// Widgets
 			'enable_widget_progress_bar'          => 1,
 			'enable_widget_course_content'        => 1,
+			'enable_widget_acf_repeater'          => 1,
 			// Query Filter
 			'enable_query_course_purchase'        => 1,
 		];
@@ -377,6 +378,11 @@ class Settings_Page {
 							'enable_widget_course_content',
 							__( 'Kurs-Inhalt (reiner Text)', 'soulsites-learndash' ),
 							__( 'Zeigt den post_content eines Kurses ohne die von LearnDash automatisch hinzugefügten Elemente (Kursliste, Navigation etc.).', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_widget_acf_repeater',
+							__( 'ACF Repeater Liste', 'soulsites-learndash' ),
+							__( 'Liest ein ACF-Repeater-Feld aus und zeigt dessen Einträge als Liste an. Feldschlüssel für Titel, Beschreibung und Link sind im Widget frei konfigurierbar.', 'soulsites-learndash' )
 						);
 					}
 				);
