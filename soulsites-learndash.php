@@ -108,6 +108,7 @@ final class SoulSites_LearnDash_Elementor {
 		add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
 		add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
 		add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
+		add_action( 'elementor/init', [ $this, 'init_element_conditions' ], 10 );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
 	}
 
@@ -314,6 +315,25 @@ final class SoulSites_LearnDash_Elementor {
 				if ( class_exists( $class ) ) {
 					$widgets_manager->register( new $class() );
 				}
+			}
+		} catch ( \Exception $e ) {
+			return;
+		}
+	}
+
+	/**
+	 * Initialize Element Conditions
+	 * Adds "Erweiterte Bedingungen" section to every Elementor element.
+	 */
+	public function init_element_conditions() {
+		try {
+			$filepath = SOULSITES_LEARNDASH_PATH . 'includes/element-conditions/class-element-conditions.php';
+			if ( file_exists( $filepath ) ) {
+				require_once $filepath;
+			}
+
+			if ( class_exists( 'SoulSites\Element_Conditions\Element_Conditions' ) ) {
+				SoulSites\Element_Conditions\Element_Conditions::get_instance();
 			}
 		} catch ( \Exception $e ) {
 			return;
