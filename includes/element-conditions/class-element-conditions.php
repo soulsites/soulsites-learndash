@@ -239,7 +239,18 @@ class Element_Conditions {
 			return ! $should_be_enrolled;
 		}
 
-		$is_enrolled = (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
+		$user_id = get_current_user_id();
+
+		// Einschreibungsstatus über learndash_user_get_enrolled_courses() prüfen –
+		// konsistent mit "Meine Kurse" und dem Course Purchase Query Filter.
+		// sfwd_lms_has_access() kann bei WooCommerce-Käufen ein abweichendes Ergebnis
+		// liefern, obwohl der Kurs korrekt in "Meine Kurse" erscheint.
+		if ( function_exists( 'learndash_user_get_enrolled_courses' ) ) {
+			$enrolled = learndash_user_get_enrolled_courses( $user_id );
+			$is_enrolled = in_array( (int) $course_id, array_map( 'intval', (array) $enrolled ), true );
+		} else {
+			$is_enrolled = (bool) sfwd_lms_has_access( $course_id, $user_id );
+		}
 
 		return $should_be_enrolled ? $is_enrolled : ! $is_enrolled;
 	}
