@@ -151,8 +151,12 @@ class Element_Conditions {
 	 * @param \Elementor\Element_Base $element Current element instance.
 	 */
 	public function before_render( $element ) {
-		// Im Elementor-Editor immer sichtbar lassen.
+		// Im Elementor-Editor und Preview-Modus immer sichtbar lassen.
 		if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
+			return;
+		}
+		if ( \Elementor\Plugin::$instance->preview &&
+			 \Elementor\Plugin::$instance->preview->is_preview_mode() ) {
 			return;
 		}
 
