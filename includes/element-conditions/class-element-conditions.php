@@ -132,8 +132,25 @@ class Element_Conditions {
 					''                    => esc_html__( 'Immer anzeigen', 'soulsites-learndash' ),
 					'logged_in'           => esc_html__( 'Logged In', 'soulsites-learndash' ),
 					'logged_out'          => esc_html__( 'Logged Out', 'soulsites-learndash' ),
-					'course_enrolled'     => esc_html__( 'Course enrolled', 'soulsites-learndash' ),
-					'course_not_enrolled' => esc_html__( 'Course not enrolled', 'soulsites-learndash' ),
+					'course_enrolled'     => esc_html__( 'LearnDash: Kurs eingeschrieben', 'soulsites-learndash' ),
+					'course_not_enrolled' => esc_html__( 'LearnDash: Kurs nicht eingeschrieben', 'soulsites-learndash' ),
+					'mp_has_membership'   => esc_html__( 'MemberPress: Aktive Mitgliedschaft', 'soulsites-learndash' ),
+					'mp_no_membership'    => esc_html__( 'MemberPress: Keine Mitgliedschaft', 'soulsites-learndash' ),
+					'mp_has_specific'     => esc_html__( 'MemberPress: In bestimmter Mitgliedschaft', 'soulsites-learndash' ),
+					'mp_not_specific'     => esc_html__( 'MemberPress: Nicht in bestimmter Mitgliedschaft', 'soulsites-learndash' ),
+				],
+			]
+		);
+
+		$element->add_control(
+			'ss_condition_membership_id',
+			[
+				'label'       => esc_html__( 'Mitgliedschaft (ID)', 'soulsites-learndash' ),
+				'description' => esc_html__( 'Die WordPress-Post-ID der MemberPress-Mitgliedschaft.', 'soulsites-learndash' ),
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'min'         => 1,
+				'condition'   => [
+					'ss_condition_type' => [ 'mp_has_specific', 'mp_not_specific' ],
 				],
 			]
 		);
@@ -166,7 +183,11 @@ class Element_Conditions {
 			return;
 		}
 
-		if ( ! $this->check_condition( $condition ) ) {
+		$args = [
+			'membership_id' => (int) $element->get_settings_for_display( 'ss_condition_membership_id' ),
+		];
+
+		if ( ! $this->check_condition( $condition, $args ) ) {
 			$element->add_render_attribute( '_wrapper', 'style', 'display:none !important;' );
 		}
 	}
@@ -179,9 +200,10 @@ class Element_Conditions {
 	 * Evaluate a condition string and return whether it is met.
 	 *
 	 * @param string $condition One of the option values registered in add_controls().
+	 * @param array  $args      Optional extra data (e.g. 'membership_id').
 	 * @return bool
 	 */
-	private function check_condition( $condition ) {
+	private function check_condition( $condition, $args = [] ) {
 		switch ( $condition ) {
 			case 'logged_in':
 				return is_user_logged_in();
@@ -194,6 +216,18 @@ class Element_Conditions {
 
 			case 'course_not_enrolled':
 				return $this->check_course_access( false );
+
+			case 'mp_has_membership':
+				return $this->check_memberpress_membership( true );
+
+			case 'mp_no_membership':
+				return $this->check_memberpress_membership( false );
+
+			case 'mp_has_specific':
+				return $this->check_memberpress_specific( true, $args['membership_id'] ?? 0 );
+
+			case 'mp_not_specific':
+				return $this->check_memberpress_specific( false, $args['membership_id'] ?? 0 );
 
 			default:
 				return true;
@@ -242,5 +276,52 @@ class Element_Conditions {
 		$is_enrolled = (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
 
 		return $should_be_enrolled ? $is_enrolled : ! $is_enrolled;
+	}
+
+	/**
+	 * Check whether the current user has any active MemberPress membership.
+	 *
+	 * Returns false if MemberPress is not installed or the user is not logged in
+	 * and $should_have is true.
+	 *
+	 * @param bool $should_have TRUE = check "has membership", FALSE = check "has no membership".
+	 * @return bool
+	 */
+	private function check_memberpress_membership( $should_have ) {
+		if ( ! class_exists( 'MeprUser' ) ) {
+			return false;
+		}
+
+		if ( ! is_user_logged_in() ) {
+			// Nicht eingeloggte Nutzer haben keine Mitgliedschaft.
+			return ! $should_have;
+		}
+
+		$mepr_user = new \MeprUser( get_current_user_id() );
+		$has       = ! empty( $mepr_user->active_memberships() );
+
+		return $should_have ? $has : ! $has;
+	}
+
+	/**
+	 * Check whether the current user is a member of a specific MemberPress membership.
+	 *
+	 * @param bool $should_have   TRUE = check "is member", FALSE = check "is not member".
+	 * @param int  $membership_id Post ID of the MemberPress membership product.
+	 * @return bool
+	 */
+	private function check_memberpress_specific( $should_have, $membership_id ) {
+		if ( ! class_exists( 'MeprUser' ) || ! $membership_id ) {
+			return false;
+		}
+
+		if ( ! is_user_logged_in() ) {
+			return ! $should_have;
+		}
+
+		$mepr_user = new \MeprUser( get_current_user_id() );
+		$has       = (bool) $mepr_user->is_already_subscribed_to( $membership_id );
+
+		return $should_have ? $has : ! $has;
 	}
 }
