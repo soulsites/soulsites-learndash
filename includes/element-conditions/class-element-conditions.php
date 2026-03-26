@@ -97,12 +97,15 @@ class Element_Conditions {
 			return;
 		}
 
-		// Nur einmal pro Elementtyp (Name) ausführen.
-		$element_name = $element->get_name();
-		if ( isset( $this->processed_elements[ $element_name ] ) ) {
+		// Einmal pro Element-INSTANZ ausführen (nicht pro Typ).
+		// Tracking nach Typ würde alle weiteren Instanzen desselben Typs überspringen,
+		// sodass deren Controls nicht registriert werden und gespeicherte Werte
+		// verloren gehen (get_settings_for_display gibt '' zurück).
+		$tracking_key = $element->get_id() ?: spl_object_hash( $element );
+		if ( isset( $this->processed_elements[ $tracking_key ] ) ) {
 			return;
 		}
-		$this->processed_elements[ $element_name ] = true;
+		$this->processed_elements[ $tracking_key ] = true;
 
 		$this->add_controls( $element );
 	}
