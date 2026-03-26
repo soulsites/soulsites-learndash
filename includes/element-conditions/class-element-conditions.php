@@ -1,8 +1,10 @@
 <?php
 /**
  * Element Conditions
- * Fügt jedem Elementor-Element einen "Erweiterte Bedingungen"-Abschnitt hinzu,
- * über den einfache Sichtbarkeitsregeln konfiguriert werden können.
+ *
+ * Fügt jedem Elementor-Element einen „Erweiterte Bedingungen"-Abschnitt hinzu.
+ * Die Sichtbarkeitslogik spiegelt exakt das Verhalten der LearnDash-Shortcodes
+ * [student] und [visitor] wider.
  *
  * @package SoulSites_LearnDash
  */
@@ -16,32 +18,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Element_Conditions
  *
- * Registriert einen neuen Abschnitt „Erweiterte Bedingungen" im Advanced-Tab
- * aller Elementor-Elemente (Widgets, Sections, Container, Columns) und
- * blendet Elemente auf dem Frontend aus, wenn die gewählte Bedingung nicht erfüllt ist.
+ * Verfügbare Bedingungen:
+ *   - logged_in           → Nutzer ist eingeloggt
+ *   - logged_out          → Nutzer ist ausgeloggt (Besucher)
+ *   - course_enrolled     → Nutzer hat Zugang zum Kurs  (wie [student])
+ *   - course_not_enrolled → Nutzer hat keinen Zugang    (wie [visitor])
+ *
+ * Die Kurs-ID wird automatisch aus dem aktuellen Post ermittelt.
+ * Optional kann eine explizite ID im Editor eingetragen werden.
  */
 class Element_Conditions {
 
-	/**
-	 * Plugin instance
-	 *
-	 * @var Element_Conditions
-	 */
+	/** @var Element_Conditions|null */
 	private static $instance = null;
 
 	/**
-	 * Tracks element names for which our section was already added.
-	 * Prevents duplicate sections when multiple trigger-section IDs exist in one element.
+	 * Verhindert, dass ein Abschnitt mehrfach zum gleichen Element hinzugefügt wird
+	 * (der Hook `after_section_end` feuert einmal pro beendetem Abschnitt).
 	 *
 	 * @var array<string, bool>
 	 */
 	private $processed_elements = [];
 
-	/**
-	 * Get plugin instance
-	 *
-	 * @return Element_Conditions
-	 */
+	/** @return Element_Conditions */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -49,72 +48,52 @@ class Element_Conditions {
 		return self::$instance;
 	}
 
-	/**
-	 * Constructor – registers all hooks.
-	 */
 	private function __construct() {
-		// Controls zu allen Elementtypen hinzufügen.
-		// Wir nutzen den generischen Hook und prüfen intern, nach welchem Abschnitt
-		// wir unsere Sektion einfügen sollen – robust gegenüber verschiedenen
-		// Elementor-/Elementor-Pro-Versionen.
 		add_action( 'elementor/element/after_section_end', [ $this, 'maybe_add_controls' ], 10, 3 );
 
-		// Frontend-Sichtbarkeit steuern.
 		foreach ( [ 'widget', 'section', 'column', 'container' ] as $type ) {
 			add_action( "elementor/frontend/{$type}/before_render", [ $this, 'before_render' ] );
 		}
 	}
 
+	// =========================================================================
+	// Controls registrieren
+	// =========================================================================
+
 	/**
-	 * Adds the "Erweiterte Bedingungen" section after the last Advanced-tab section.
+	 * Fügt unseren Abschnitt nach dem letzten Abschnitt im Advanced-Tab ein.
+	 * Kompatibel mit Elementor Free und Elementor Pro (verschiedene letzte Abschnitte).
 	 *
-	 * The hook fires once per ended section for every element type. We accept multiple
-	 * possible "last section" IDs to be compatible across Elementor / Elementor Pro
-	 * versions. A per-element-name flag prevents duplicate sections.
-	 *
-	 * Known last-section IDs (in descending priority):
-	 *   _section_custom_css_pro  – Elementor Pro: Custom CSS (most versions)
-	 *   _section_custom_css      – Elementor Pro: Custom CSS (alternate ID)
-	 *   _section_render_visible  – some older Elementor versions
-	 *   _section_responsive      – Elementor free: Responsive (last free section)
-	 *   section_effects          – Motion Effects (fallback if nothing else matches)
-	 *
-	 * @param \Elementor\Element_Base $element   Element instance.
-	 * @param string                  $section_id Section that just ended.
-	 * @param array                   $args       Additional arguments (unused).
+	 * @param \Elementor\Element_Base $element
+	 * @param string                  $section_id
+	 * @param array                   $args
 	 */
 	public function maybe_add_controls( $element, $section_id, $args ) {
-		// Kandidaten für "letzter Abschnitt im Advanced-Tab", absteigend priorisiert.
-		$trigger_sections = [
-			'_section_custom_css_pro',
-			'_section_custom_css',
-			'_section_render_visible',
-			'_section_responsive',
-			'section_effects',
+		// Mögliche IDs des letzten Abschnitts im Advanced-Tab, je nach Version.
+		static $trigger_sections = [
+			'_section_custom_css_pro', // Elementor Pro (aktuell)
+			'_section_custom_css',     // Elementor Pro (ältere Versionen)
+			'_section_render_visible', // Elementor Free (ältere Versionen)
+			'_section_responsive',     // Elementor Free (aktuell)
+			'section_effects',         // Motion Effects (Fallback)
 		];
 
 		if ( ! in_array( $section_id, $trigger_sections, true ) ) {
 			return;
 		}
 
-		// Einmal pro Element-INSTANZ ausführen (nicht pro Typ).
-		// Tracking nach Typ würde alle weiteren Instanzen desselben Typs überspringen,
-		// sodass deren Controls nicht registriert werden und gespeicherte Werte
-		// verloren gehen (get_settings_for_display gibt '' zurück).
-		$tracking_key = $element->get_id() ?: spl_object_hash( $element );
-		if ( isset( $this->processed_elements[ $tracking_key ] ) ) {
+		// Einmal pro Element-Instanz – nicht pro Typ, damit alle Instanzen ihre
+		// eigenen Controls erhalten und gespeicherte Werte nicht verloren gehen.
+		$key = $element->get_id() ?: spl_object_hash( $element );
+		if ( isset( $this->processed_elements[ $key ] ) ) {
 			return;
 		}
-		$this->processed_elements[ $tracking_key ] = true;
+		$this->processed_elements[ $key ] = true;
 
 		$this->add_controls( $element );
 	}
 
-	/**
-	 * Registers the "Erweiterte Bedingungen" section on the given element.
-	 *
-	 * @param \Elementor\Element_Base $element Element instance.
-	 */
+	/** @param \Elementor\Element_Base $element */
 	private function add_controls( $element ) {
 		$element->start_controls_section(
 			'ss_element_conditions_section',
@@ -133,14 +112,10 @@ class Element_Conditions {
 				'default'     => '',
 				'options'     => [
 					''                    => esc_html__( 'Immer anzeigen', 'soulsites-learndash' ),
-					'logged_in'           => esc_html__( 'Logged In', 'soulsites-learndash' ),
-					'logged_out'          => esc_html__( 'Logged Out', 'soulsites-learndash' ),
-					'course_enrolled'     => esc_html__( 'Course enrolled', 'soulsites-learndash' ),
-					'course_not_enrolled' => esc_html__( 'Course not enrolled', 'soulsites-learndash' ),
-					'mp_has_membership'   => esc_html__( 'MemberPress: Aktive Mitgliedschaft', 'soulsites-learndash' ),
-					'mp_no_membership'    => esc_html__( 'MemberPress: Keine Mitgliedschaft', 'soulsites-learndash' ),
-					'mp_has_specific'     => esc_html__( 'MemberPress: In bestimmter Mitgliedschaft', 'soulsites-learndash' ),
-					'mp_not_specific'     => esc_html__( 'MemberPress: Nicht in bestimmter Mitgliedschaft', 'soulsites-learndash' ),
+					'logged_in'           => esc_html__( 'Eingeloggt', 'soulsites-learndash' ),
+					'logged_out'          => esc_html__( 'Ausgeloggt (Besucher)', 'soulsites-learndash' ),
+					'course_enrolled'     => esc_html__( 'Kurs: Eingeschrieben (wie [student])', 'soulsites-learndash' ),
+					'course_not_enrolled' => esc_html__( 'Kurs: Nicht eingeschrieben (wie [visitor])', 'soulsites-learndash' ),
 				],
 			]
 		);
@@ -149,7 +124,7 @@ class Element_Conditions {
 			'ss_condition_course_id',
 			[
 				'label'       => esc_html__( 'Kurs-ID (optional)', 'soulsites-learndash' ),
-				'description' => esc_html__( 'Leer lassen = aktueller Kurs wird automatisch erkannt. Explizite ID eintragen wie beim Shortcode course_id="38414".', 'soulsites-learndash' ),
+				'description' => esc_html__( 'Leer lassen = aktueller Kurs wird automatisch erkannt. Explizite ID eintragen wie beim Shortcode course_id="123".', 'soulsites-learndash' ),
 				'type'        => \Elementor\Controls_Manager::NUMBER,
 				'min'         => 1,
 				'condition'   => [
@@ -158,71 +133,46 @@ class Element_Conditions {
 			]
 		);
 
-		$element->add_control(
-			'ss_condition_membership_id',
-			[
-				'label'       => esc_html__( 'Mitgliedschaft (ID)', 'soulsites-learndash' ),
-				'description' => esc_html__( 'Die WordPress-Post-ID der MemberPress-Mitgliedschaft.', 'soulsites-learndash' ),
-				'type'        => \Elementor\Controls_Manager::NUMBER,
-				'min'         => 1,
-				'condition'   => [
-					'ss_condition_type' => [ 'mp_has_specific', 'mp_not_specific' ],
-				],
-			]
-		);
-
 		$element->end_controls_section();
 	}
 
-	/**
-	 * Before an element renders on the frontend: hide it if the condition is not met.
-	 *
-	 * In edit mode every element is always rendered. On the frontend a CSS
-	 * `display:none !important` is added to the wrapper when the condition evaluates
-	 * to false.
-	 *
-	 * @param \Elementor\Element_Base $element Current element instance.
-	 */
+	// =========================================================================
+	// Frontend-Rendering
+	// =========================================================================
+
+	/** @param \Elementor\Element_Base $element */
 	public function before_render( $element ) {
-		// Im Elementor-Editor und Preview-Modus immer sichtbar lassen.
+		// Im Editor und Preview immer alles anzeigen.
 		if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
 			return;
 		}
 		if ( \Elementor\Plugin::$instance->preview &&
-			 \Elementor\Plugin::$instance->preview->is_preview_mode() ) {
+		     \Elementor\Plugin::$instance->preview->is_preview_mode() ) {
 			return;
 		}
 
 		$condition = $element->get_settings_for_display( 'ss_condition_type' );
-
 		if ( empty( $condition ) ) {
 			return;
 		}
 
-		$args = [
-			'course_id'     => (int) $element->get_settings_for_display( 'ss_condition_course_id' ),
-			'membership_id' => (int) $element->get_settings_for_display( 'ss_condition_membership_id' ),
-		];
+		$course_id = (int) $element->get_settings_for_display( 'ss_condition_course_id' );
 
-		$result = $this->check_condition( $condition, $args );
-
-		if ( ! $result ) {
+		if ( ! $this->evaluate( $condition, $course_id ) ) {
 			$element->add_render_attribute( '_wrapper', 'style', 'display:none !important;' );
 		}
 	}
 
-	// -------------------------------------------------------------------------
-	// Private helpers
-	// -------------------------------------------------------------------------
+	// =========================================================================
+	// Bedingungsauswertung
+	// =========================================================================
 
 	/**
-	 * Evaluate a condition string and return whether it is met.
-	 *
-	 * @param string $condition One of the option values registered in add_controls().
-	 * @param array  $args      Optional extra data (e.g. 'membership_id').
+	 * @param string $condition
+	 * @param int    $course_id  Explizite Kurs-ID (0 = auto-detect).
 	 * @return bool
 	 */
-	private function check_condition( $condition, $args = [] ) {
+	private function evaluate( $condition, $course_id ) {
 		switch ( $condition ) {
 			case 'logged_in':
 				return is_user_logged_in();
@@ -231,92 +181,43 @@ class Element_Conditions {
 				return ! is_user_logged_in();
 
 			case 'course_enrolled':
-				return $this->check_course_access( true, $args['course_id'] ?? 0 );
+				return $this->student_check( $course_id );
 
 			case 'course_not_enrolled':
-				return $this->check_course_access( false, $args['course_id'] ?? 0 );
-
-			case 'mp_has_membership':
-				return $this->check_memberpress_membership( true );
-
-			case 'mp_no_membership':
-				return $this->check_memberpress_membership( false );
-
-			case 'mp_has_specific':
-				return $this->check_memberpress_specific( true, $args['membership_id'] ?? 0 );
-
-			case 'mp_not_specific':
-				return $this->check_memberpress_specific( false, $args['membership_id'] ?? 0 );
+				// [visitor]-Logik: Zugang NICHT vorhanden → true.
+				return ! $this->student_check( $course_id );
 
 			default:
 				return true;
 		}
 	}
 
+	// =========================================================================
+	// [student]-Logik (Kurs-Zugang prüfen)
+	// =========================================================================
+
 	/**
-	 * Check whether the current user has access to a course.
+	 * Prüft, ob der aktuelle Nutzer Zugang zum Kurs hat.
+	 * Spiegelt die Logik des LearnDash [student]-Shortcodes exakt wider.
 	 *
-	 * Mirrors the behaviour of LearnDash's own [student course_id="X"] shortcode:
-	 * calls sfwd_lms_has_access() with the resolved course ID, which handles all
-	 * access models (direct enrollment, WooCommerce, MemberPress with auto-enroll).
-	 *
-	 * Course ID resolution order:
-	 *  1. Explicit $override_course_id (set via the "Kurs-ID" field in the editor).
-	 *  2. Current post is a course (`sfwd-courses`) → use get_the_ID().
-	 *  3. Current post is a lesson/topic → learndash_get_course_id().
-	 *  4. Nothing found → condition evaluates to false.
-	 *
-	 * @param bool $should_have_access TRUE = "Course enrolled", FALSE = "Course not enrolled".
-	 * @param int  $override_course_id Optional explicit course ID (0 = auto-detect).
+	 * @param int $override_course_id  Explizite Kurs-ID aus dem Editor (0 = auto-detect).
 	 * @return bool
 	 */
-	private function check_course_access( $should_have_access, $override_course_id = 0 ) {
-		try {
-			if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
-				// LearnDash nicht installiert: niemand ist eingeschrieben.
-				return ! $should_have_access;
-			}
+	private function student_check( $override_course_id ) {
+		// [student]-Shortcode zeigt Inhalt ebenfalls nur für eingeloggte Nutzer.
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
 
-			// --- Kurs-ID ermitteln ---
-			$course_id = 0;
+		$user_id   = get_current_user_id();
+		$course_id = $this->resolve_course_id( $override_course_id );
 
-			if ( $override_course_id > 0 ) {
-				// Explizite ID aus dem Editor-Feld (entspricht course_id="X" im Shortcode).
-				$course_id = $override_course_id;
-			} else {
-				// Auto-Detect: aktuellen Post ermitteln.
-				$post_id = get_the_ID();
-				if ( ! $post_id ) {
-					// Kein Post-Kontext: User ist definitiv nicht eingeschrieben.
-					return ! $should_have_access;
-				}
+		if ( $course_id > 0 ) {
+			// Zugang zu einem bestimmten Kurs prüfen.
+			$has_access = $this->user_has_course_access( $course_id, $user_id );
 
-				if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
-					$course_id = $post_id;
-				} elseif ( function_exists( 'learndash_get_course_id' ) ) {
-					$course_id = (int) learndash_get_course_id( $post_id );
-				}
-			}
-
-			if ( ! $course_id ) {
-				// Kein Kurs-Kontext erkannt: User ist definitiv nicht eingeschrieben.
-				// "course_enrolled" → false, "course_not_enrolled" → true.
-				return ! $should_have_access;
-			}
-
-			// --- Nicht eingeloggte Nutzer sind nie eingeschrieben ---
-			if ( ! is_user_logged_in() ) {
-				// "not enrolled" trifft zu, "enrolled" trifft nicht zu.
-				return ! $should_have_access;
-			}
-
-			$user_id = get_current_user_id();
-
-			// --- Zugriffsprüfung identisch zum [student]-Shortcode ---
-			$has_access = (bool) sfwd_lms_has_access( $course_id, $user_id );
-
-			// Filter anwenden – exakt wie der [student]-Shortcode (seit LearnDash 4.4.0).
-			// MemberPress und andere Integrationen können hier den Zugang überschreiben.
+			// Filter anwenden – identisch zum [student]-Shortcode (seit LearnDash 4.4.0).
+			// Integrationen (WooCommerce, MemberPress etc.) können hier überschreiben.
 			$has_access = (bool) apply_filters(
 				'learndash_student_shortcode_view_content',
 				$has_access,
@@ -327,70 +228,83 @@ class Element_Conditions {
 				]
 			);
 
-			return $should_have_access ? $has_access : ! $has_access;
-
-		} catch ( \Throwable $e ) {
-			return false;
+			return $has_access;
 		}
+
+		// Kein Kurs-Kontext: prüfen ob Nutzer irgendeinen Kurs belegt hat.
+		// (Entspricht dem [student]-Shortcode ohne course_id-Attribut.)
+		if ( function_exists( 'learndash_user_get_enrolled_courses' ) ) {
+			$enrolled = learndash_user_get_enrolled_courses( $user_id, [] );
+			return ! empty( $enrolled );
+		}
+
+		return false;
 	}
 
 	/**
-	 * Check whether the current user has any active MemberPress membership.
+	 * Ermittelt die Kurs-ID – identisch zur Auflösungslogik im [student]-Shortcode.
 	 *
-	 * Returns false if MemberPress is not installed or the user is not logged in
-	 * and $should_have is true.
+	 * Reihenfolge:
+	 *  1. Explizite ID aus dem Editor-Feld (wird als Kurs-Post-Type validiert).
+	 *  2. Aktueller Post ist ein Kurs-bezogener Post-Type → learndash_get_course_id().
+	 *  3. Kein Kontext erkennbar → 0 (kein Kurs).
 	 *
-	 * @param bool $should_have TRUE = check "has membership", FALSE = check "has no membership".
-	 * @return bool
+	 * @param int $override_course_id
+	 * @return int  Aufgelöste Kurs-ID oder 0.
 	 */
-	private function check_memberpress_membership( $should_have ) {
-		if ( ! class_exists( 'MeprUser' ) ) {
-			// MemberPress nicht installiert: niemand hat eine Mitgliedschaft.
-			// "mp_has_membership" → false, "mp_no_membership" → true.
-			return ! $should_have;
+	private function resolve_course_id( $override_course_id ) {
+		if ( $override_course_id > 0 ) {
+			// Validieren: muss ein Kurs-Post-Type sein (wie im [student]-Shortcode).
+			if ( function_exists( 'learndash_get_post_type_slug' )
+			     && learndash_get_post_type_slug( 'course' ) === get_post_type( $override_course_id ) ) {
+				return $override_course_id;
+			}
+			// Ungültige ID → Auto-Detect (gleiche Fallback-Logik wie im Shortcode).
 		}
 
-		if ( ! is_user_logged_in() ) {
-			return ! $should_have;
+		$post_id = (int) get_the_ID();
+		if ( ! $post_id ) {
+			return 0;
 		}
 
-		try {
-			$mepr_user = new \MeprUser( get_current_user_id() );
-			$has       = ! empty( $mepr_user->active_memberships() );
-			return $should_have ? $has : ! $has;
-		} catch ( \Throwable $e ) {
-			return false;
+		// Auto-Detect: gehört der aktuelle Post zu einem Kurs?
+		if ( function_exists( 'learndash_get_post_types' ) && function_exists( 'learndash_get_course_id' ) ) {
+			if ( in_array( get_post_type( $post_id ), learndash_get_post_types( 'course' ), true ) ) {
+				return (int) learndash_get_course_id( $post_id );
+			}
 		}
+
+		return 0;
 	}
 
 	/**
-	 * Check whether the current user is a member of a specific MemberPress membership.
+	 * Prüft den Kurs-Zugang für einen Nutzer.
+	 * Verwendet die moderne Product-API (LearnDash 4.x) falls verfügbar,
+	 * sonst Fallback auf sfwd_lms_has_access().
 	 *
-	 * @param bool $should_have   TRUE = check "is member", FALSE = check "is not member".
-	 * @param int  $membership_id Post ID of the MemberPress membership product.
+	 * @param int $course_id
+	 * @param int $user_id
 	 * @return bool
 	 */
-	private function check_memberpress_specific( $should_have, $membership_id ) {
-		if ( ! class_exists( 'MeprUser' ) ) {
-			// MemberPress nicht installiert: niemand ist Mitglied.
-			return ! $should_have;
+	private function user_has_course_access( $course_id, $user_id ) {
+		// Moderne API (LearnDash 4.x) – gleich wie im [student]-Shortcode.
+		if ( class_exists( '\LearnDash\Core\Models\Product' ) ) {
+			try {
+				$product = \LearnDash\Core\Models\Product::find( $course_id );
+				if ( $product instanceof \LearnDash\Core\Models\Product ) {
+					return $product->user_has_access( $user_id )
+					       || $product->is_pre_ordered( $user_id );
+				}
+			} catch ( \Throwable $e ) {
+				// Fallthrough zur Legacy-Methode.
+			}
 		}
 
-		if ( ! $membership_id ) {
-			// Keine Membership-ID konfiguriert – Bedingung kann nicht evaluiert werden → true zurückgeben (sicher).
-			return true;
+		// Legacy-Fallback (LearnDash < 4.x).
+		if ( function_exists( 'sfwd_lms_has_access' ) ) {
+			return (bool) sfwd_lms_has_access( $course_id, $user_id );
 		}
 
-		if ( ! is_user_logged_in() ) {
-			return ! $should_have;
-		}
-
-		try {
-			$mepr_user = new \MeprUser( get_current_user_id() );
-			$has       = (bool) $mepr_user->is_already_subscribed_to( $membership_id );
-			return $should_have ? $has : ! $has;
-		} catch ( \Throwable $e ) {
-			return false;
-		}
+		return false;
 	}
 }
