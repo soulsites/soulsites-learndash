@@ -193,26 +193,7 @@ class Element_Conditions {
 			return;
 		}
 
-		// DEBUG: Alle Settings auslesen, bevor irgendetwas gefiltert wird.
-		$raw_settings = $element->get_settings();
-		$condition_raw     = isset( $raw_settings['ss_condition_type'] ) ? $raw_settings['ss_condition_type'] : '__KEY_MISSING__';
-		$condition_display = $element->get_settings_for_display( 'ss_condition_type' );
-
-		// Nur loggen wenn Key vorhanden oder condition_display gesetzt.
-		if ( $condition_raw !== '__KEY_MISSING__' || ! empty( $condition_display ) ) {
-			echo '<script>console.log("[SS-Debug]", ' . wp_json_encode( [
-				'element_type'      => $element->get_name(),
-				'element_id'        => $element->get_id(),
-				'condition_raw'     => $condition_raw,
-				'condition_display' => $condition_display,
-				'all_ss_keys'       => array_filter(
-					array_keys( $raw_settings ),
-					function( $k ) { return strpos( $k, 'ss_' ) === 0; }
-				),
-			] ) . ');</script>';
-		}
-
-		$condition = $condition_display;
+		$condition = $element->get_settings_for_display( 'ss_condition_type' );
 
 		if ( empty( $condition ) ) {
 			return;
@@ -224,9 +205,6 @@ class Element_Conditions {
 		];
 
 		$result = $this->check_condition( $condition, $args );
-		$debug  = $this->collect_debug_info( $element->get_id(), $condition, $args, $result );
-
-		echo '<script>console.log("[SS-Conditions] element_id=' . esc_js( $element->get_id() ) . '", ' . wp_json_encode( $debug ) . ');</script>';
 
 		if ( ! $result ) {
 			$element->add_render_attribute( '_wrapper', 'style', 'display:none !important;' );
@@ -236,77 +214,6 @@ class Element_Conditions {
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
-
-	/**
-	 * Collects debug information for JS console output.
-	 *
-	 * @param string $element_id Elementor element ID.
-	 * @param string $condition  Condition key selected in the editor.
-	 * @param array  $args       Additional args (course_id override, membership_id).
-	 * @param bool   $result     Final condition result.
-	 * @return array
-	 */
-	private function collect_debug_info( $element_id, $condition, $args, $result ) {
-		$post_id   = get_the_ID();
-		$post_type = $post_id ? get_post_type( $post_id ) : 'unknown';
-		$user_id   = get_current_user_id();
-
-		$info = [
-			'element_id'      => $element_id,
-			'condition'       => $condition,
-			'post_id'         => $post_id,
-			'post_type'       => $post_type,
-			'user_logged_in'  => is_user_logged_in(),
-			'user_id'         => $user_id,
-			'final_result'    => $result,
-			'element_hidden'  => ! $result,
-		];
-
-		if ( in_array( $condition, [ 'course_enrolled', 'course_not_enrolled' ], true ) ) {
-			$override_id = $args['course_id'] ?? 0;
-
-			// Kurs-ID auflösen (gleiche Logik wie check_course_access).
-			if ( $override_id > 0 ) {
-				$course_id = $override_id;
-				$id_source = 'explicit';
-			} elseif ( $post_id && $post_type === 'sfwd-courses' ) {
-				$course_id = $post_id;
-				$id_source = 'post_is_course';
-			} elseif ( $post_id && function_exists( 'learndash_get_course_id' ) ) {
-				$course_id = (int) learndash_get_course_id( $post_id );
-				$id_source = 'learndash_get_course_id';
-			} else {
-				$course_id = 0;
-				$id_source = 'not_found';
-			}
-
-			$sfwd_result   = null;
-			$filter_result = null;
-
-			if ( $course_id && is_user_logged_in() && function_exists( 'sfwd_lms_has_access' ) ) {
-				$sfwd_result = (bool) sfwd_lms_has_access( $course_id, $user_id );
-				$filter_result = (bool) apply_filters(
-					'learndash_student_shortcode_view_content',
-					$sfwd_result,
-					[ 'course_id' => $course_id, 'user_id' => $user_id, 'content' => '' ]
-				);
-			}
-
-			$info['course_id_override']    = $override_id;
-			$info['course_id_resolved']    = $course_id;
-			$info['course_id_source']      = $id_source;
-			$info['sfwd_lms_has_access']   = $sfwd_result;
-			$info['after_filter']          = $filter_result;
-			$info['sfwd_function_exists']  = function_exists( 'sfwd_lms_has_access' );
-		}
-
-		if ( in_array( $condition, [ 'mp_has_membership', 'mp_no_membership', 'mp_has_specific', 'mp_not_specific' ], true ) ) {
-			$info['mepruser_class_exists'] = class_exists( 'MeprUser' );
-			$info['membership_id_arg']     = $args['membership_id'] ?? 0;
-		}
-
-		return $info;
-	}
 
 	/**
 	 * Evaluate a condition string and return whether it is met.
@@ -366,7 +273,8 @@ class Element_Conditions {
 	private function check_course_access( $should_have_access, $override_course_id = 0 ) {
 		try {
 			if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
-				return false;
+				// LearnDash nicht installiert: niemand ist eingeschrieben.
+				return ! $should_have_access;
 			}
 
 			// --- Kurs-ID ermitteln ---
@@ -379,7 +287,8 @@ class Element_Conditions {
 				// Auto-Detect: aktuellen Post ermitteln.
 				$post_id = get_the_ID();
 				if ( ! $post_id ) {
-					return false;
+					// Kein Post-Kontext: User ist definitiv nicht eingeschrieben.
+					return ! $should_have_access;
 				}
 
 				if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
@@ -390,7 +299,9 @@ class Element_Conditions {
 			}
 
 			if ( ! $course_id ) {
-				return false;
+				// Kein Kurs-Kontext erkannt: User ist definitiv nicht eingeschrieben.
+				// "course_enrolled" → false, "course_not_enrolled" → true.
+				return ! $should_have_access;
 			}
 
 			// --- Nicht eingeloggte Nutzer sind nie eingeschrieben ---
@@ -434,7 +345,9 @@ class Element_Conditions {
 	 */
 	private function check_memberpress_membership( $should_have ) {
 		if ( ! class_exists( 'MeprUser' ) ) {
-			return false;
+			// MemberPress nicht installiert: niemand hat eine Mitgliedschaft.
+			// "mp_has_membership" → false, "mp_no_membership" → true.
+			return ! $should_have;
 		}
 
 		if ( ! is_user_logged_in() ) {
@@ -458,8 +371,14 @@ class Element_Conditions {
 	 * @return bool
 	 */
 	private function check_memberpress_specific( $should_have, $membership_id ) {
-		if ( ! class_exists( 'MeprUser' ) || ! $membership_id ) {
-			return false;
+		if ( ! class_exists( 'MeprUser' ) ) {
+			// MemberPress nicht installiert: niemand ist Mitglied.
+			return ! $should_have;
+		}
+
+		if ( ! $membership_id ) {
+			// Keine Membership-ID konfiguriert – Bedingung kann nicht evaluiert werden → true zurückgeben (sicher).
+			return true;
 		}
 
 		if ( ! is_user_logged_in() ) {
