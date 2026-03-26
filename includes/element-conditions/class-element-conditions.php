@@ -143,6 +143,19 @@ class Element_Conditions {
 		);
 
 		$element->add_control(
+			'ss_condition_course_id',
+			[
+				'label'       => esc_html__( 'Kurs-ID (optional)', 'soulsites-learndash' ),
+				'description' => esc_html__( 'Leer lassen = aktueller Kurs wird automatisch erkannt. Explizite ID eintragen wie beim Shortcode course_id="38414".', 'soulsites-learndash' ),
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'min'         => 1,
+				'condition'   => [
+					'ss_condition_type' => [ 'course_enrolled', 'course_not_enrolled' ],
+				],
+			]
+		);
+
+		$element->add_control(
 			'ss_condition_membership_id',
 			[
 				'label'       => esc_html__( 'Mitgliedschaft (ID)', 'soulsites-learndash' ),
@@ -184,6 +197,7 @@ class Element_Conditions {
 		}
 
 		$args = [
+			'course_id'     => (int) $element->get_settings_for_display( 'ss_condition_course_id' ),
 			'membership_id' => (int) $element->get_settings_for_display( 'ss_condition_membership_id' ),
 		];
 
@@ -212,10 +226,10 @@ class Element_Conditions {
 				return ! is_user_logged_in();
 
 			case 'course_enrolled':
-				return $this->check_course_access( true );
+				return $this->check_course_access( true, $args['course_id'] ?? 0 );
 
 			case 'course_not_enrolled':
-				return $this->check_course_access( false );
+				return $this->check_course_access( false, $args['course_id'] ?? 0 );
 
 			case 'mp_has_membership':
 				return $this->check_memberpress_membership( true );
@@ -235,117 +249,80 @@ class Element_Conditions {
 	}
 
 	/**
-	 * Check whether the current user has access to the contextual course.
+	 * Check whether the current user has access to a course.
 	 *
-	 * Works with any access model:
-	 *  - LearnDash direct enrollment (free courses, manual enrollment)
-	 *  - WooCommerce + LearnDash integration
-	 *  - MemberPress + LearnDash integration (auto-enroll via membership)
-	 *  - MemberPress content-protection rules without auto-enrollment
+	 * Mirrors the behaviour of LearnDash's own [student course_id="X"] shortcode:
+	 * calls sfwd_lms_has_access() with the resolved course ID, which handles all
+	 * access models (direct enrollment, WooCommerce, MemberPress with auto-enroll).
 	 *
-	 * The course context is resolved in the following order:
-	 *  1. Current post is a course (`sfwd-courses`).
-	 *  2. Current post is a lesson/topic — resolved via `learndash_get_course_id()`.
-	 *  3. No course context → return false (condition not met).
+	 * Course ID resolution order:
+	 *  1. Explicit $override_course_id (set via the "Kurs-ID" field in the editor).
+	 *  2. Current post is a course (`sfwd-courses`) → use get_the_ID().
+	 *  3. Current post is a lesson/topic → learndash_get_course_id().
+	 *  4. Nothing found → condition evaluates to false.
 	 *
-	 * @param bool $should_be_enrolled TRUE = check "has access", FALSE = check "has no access".
+	 * @param bool $should_have_access TRUE = "Course enrolled", FALSE = "Course not enrolled".
+	 * @param int  $override_course_id Optional explicit course ID (0 = auto-detect).
 	 * @return bool
 	 */
-	private function check_course_access( $should_be_enrolled ) {
-		$post_id = get_the_ID();
-		if ( ! $post_id ) {
-			return false;
-		}
-
-		// Kurs-ID aus dem aktuellen Kontext ermitteln.
-		$course_id = null;
-
-		if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
-			$course_id = $post_id;
-		} elseif ( function_exists( 'learndash_get_course_id' ) ) {
-			$course_id = learndash_get_course_id( $post_id );
-		}
-
-		if ( ! $course_id ) {
-			return false;
-		}
-
-		// Nicht eingeloggte Nutzer haben keinen Zugang.
-		if ( ! is_user_logged_in() ) {
-			return ! $should_be_enrolled;
-		}
-
-		$user_id    = get_current_user_id();
-		$has_access = false;
-
-		// Primär: LearnDash-eigene Zugriffsprüfung.
-		// Deckt direkte Einschreibung, WooCommerce-Integration und
-		// MemberPress-Integrationen mit Auto-Enroll ab.
-		if ( function_exists( 'sfwd_lms_has_access' ) ) {
-			$has_access = (bool) sfwd_lms_has_access( $course_id, $user_id );
-		}
-
-		// Fallback: MemberPress-Content-Protection-Regeln.
-		// Greift, wenn MemberPress den Kurszugang über Membership-Regeln steuert,
-		// ohne den Nutzer gleichzeitig in LearnDash einzuschreiben.
-		if ( ! $has_access && class_exists( 'MeprUser' ) ) {
-			$has_access = $this->check_memberpress_course_access( $user_id, $course_id );
-		}
-
-		return $should_be_enrolled ? $has_access : ! $has_access;
-	}
-
-	/**
-	 * Check course access via MemberPress content-protection rules.
-	 *
-	 * Queries mepr-rules posts for "single" rules that protect $course_id and
-	 * verifies whether the user holds an active subscription to the associated membership.
-	 *
-	 * @param int $user_id   WordPress user ID.
-	 * @param int $course_id LearnDash course post ID.
-	 * @return bool
-	 */
-	private function check_memberpress_course_access( $user_id, $course_id ) {
-		$mepr_user = new \MeprUser( $user_id );
-
-		// Schnellausstieg: Nutzer hat keine aktive Mitgliedschaft.
-		if ( empty( $mepr_user->active_memberships() ) ) {
-			return false;
-		}
-
-		// MemberPress-Regeln für diesen spezifischen Kurs-Post abfragen.
-		// Regeln vom Typ "single" schützen einen einzelnen Post anhand seiner ID.
-		$rule_ids = get_posts( [
-			'post_type'      => 'mepr-rules',
-			'posts_per_page' => 50,
-			'fields'         => 'ids',
-			'meta_query'     => [
-				'relation' => 'AND',
-				[
-					'key'     => 'mepr_type',
-					'value'   => 'single',
-					'compare' => '=',
-				],
-				[
-					'key'     => 'mepr_subject',
-					'value'   => (string) $course_id,
-					'compare' => '=',
-				],
-			],
-		] );
-
-		if ( empty( $rule_ids ) ) {
-			return false;
-		}
-
-		foreach ( $rule_ids as $rule_id ) {
-			$product_id = (int) get_post_meta( $rule_id, 'mepr_product_id', true );
-			if ( $product_id && $mepr_user->is_already_subscribed_to( $product_id ) ) {
-				return true;
+	private function check_course_access( $should_have_access, $override_course_id = 0 ) {
+		try {
+			if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
+				return false;
 			}
-		}
 
-		return false;
+			// --- Kurs-ID ermitteln ---
+			$course_id = 0;
+
+			if ( $override_course_id > 0 ) {
+				// Explizite ID aus dem Editor-Feld (entspricht course_id="X" im Shortcode).
+				$course_id = $override_course_id;
+			} else {
+				// Auto-Detect: aktuellen Post ermitteln.
+				$post_id = get_the_ID();
+				if ( ! $post_id ) {
+					return false;
+				}
+
+				if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
+					$course_id = $post_id;
+				} elseif ( function_exists( 'learndash_get_course_id' ) ) {
+					$course_id = (int) learndash_get_course_id( $post_id );
+				}
+			}
+
+			if ( ! $course_id ) {
+				return false;
+			}
+
+			// --- Nicht eingeloggte Nutzer sind nie eingeschrieben ---
+			if ( ! is_user_logged_in() ) {
+				// "not enrolled" trifft zu, "enrolled" trifft nicht zu.
+				return ! $should_have_access;
+			}
+
+			$user_id = get_current_user_id();
+
+			// --- Zugriffsprüfung identisch zum [student]-Shortcode ---
+			$has_access = (bool) sfwd_lms_has_access( $course_id, $user_id );
+
+			// Filter anwenden – exakt wie der [student]-Shortcode (seit LearnDash 4.4.0).
+			// MemberPress und andere Integrationen können hier den Zugang überschreiben.
+			$has_access = (bool) apply_filters(
+				'learndash_student_shortcode_view_content',
+				$has_access,
+				[
+					'course_id' => $course_id,
+					'user_id'   => $user_id,
+					'content'   => '',
+				]
+			);
+
+			return $should_have_access ? $has_access : ! $has_access;
+
+		} catch ( \Throwable $e ) {
+			return false;
+		}
 	}
 
 	/**
@@ -363,14 +340,16 @@ class Element_Conditions {
 		}
 
 		if ( ! is_user_logged_in() ) {
-			// Nicht eingeloggte Nutzer haben keine Mitgliedschaft.
 			return ! $should_have;
 		}
 
-		$mepr_user = new \MeprUser( get_current_user_id() );
-		$has       = ! empty( $mepr_user->active_memberships() );
-
-		return $should_have ? $has : ! $has;
+		try {
+			$mepr_user = new \MeprUser( get_current_user_id() );
+			$has       = ! empty( $mepr_user->active_memberships() );
+			return $should_have ? $has : ! $has;
+		} catch ( \Throwable $e ) {
+			return false;
+		}
 	}
 
 	/**
@@ -389,9 +368,12 @@ class Element_Conditions {
 			return ! $should_have;
 		}
 
-		$mepr_user = new \MeprUser( get_current_user_id() );
-		$has       = (bool) $mepr_user->is_already_subscribed_to( $membership_id );
-
-		return $should_have ? $has : ! $has;
+		try {
+			$mepr_user = new \MeprUser( get_current_user_id() );
+			$has       = (bool) $mepr_user->is_already_subscribed_to( $membership_id );
+			return $should_have ? $has : ! $has;
+		} catch ( \Throwable $e ) {
+			return false;
+		}
 	}
 }
