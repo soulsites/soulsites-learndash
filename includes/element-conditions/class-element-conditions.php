@@ -201,7 +201,13 @@ class Element_Conditions {
 			'membership_id' => (int) $element->get_settings_for_display( 'ss_condition_membership_id' ),
 		];
 
-		if ( ! $this->check_condition( $condition, $args ) ) {
+		$result = $this->check_condition( $condition, $args );
+		$debug  = $this->collect_debug_info( $element->get_id(), $condition, $args, $result );
+
+		// Debug-Ausgabe in die JS-Konsole (entfernen wenn nicht mehr benötigt).
+		echo '<script>console.log("[SS-Conditions] element_id=' . esc_js( $element->get_id() ) . '", ' . wp_json_encode( $debug ) . ');</script>';
+
+		if ( ! $result ) {
 			$element->add_render_attribute( '_wrapper', 'style', 'display:none !important;' );
 		}
 	}
@@ -209,6 +215,77 @@ class Element_Conditions {
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Collects debug information for JS console output.
+	 *
+	 * @param string $element_id Elementor element ID.
+	 * @param string $condition  Condition key selected in the editor.
+	 * @param array  $args       Additional args (course_id override, membership_id).
+	 * @param bool   $result     Final condition result.
+	 * @return array
+	 */
+	private function collect_debug_info( $element_id, $condition, $args, $result ) {
+		$post_id   = get_the_ID();
+		$post_type = $post_id ? get_post_type( $post_id ) : 'unknown';
+		$user_id   = get_current_user_id();
+
+		$info = [
+			'element_id'      => $element_id,
+			'condition'       => $condition,
+			'post_id'         => $post_id,
+			'post_type'       => $post_type,
+			'user_logged_in'  => is_user_logged_in(),
+			'user_id'         => $user_id,
+			'final_result'    => $result,
+			'element_hidden'  => ! $result,
+		];
+
+		if ( in_array( $condition, [ 'course_enrolled', 'course_not_enrolled' ], true ) ) {
+			$override_id = $args['course_id'] ?? 0;
+
+			// Kurs-ID auflösen (gleiche Logik wie check_course_access).
+			if ( $override_id > 0 ) {
+				$course_id = $override_id;
+				$id_source = 'explicit';
+			} elseif ( $post_id && $post_type === 'sfwd-courses' ) {
+				$course_id = $post_id;
+				$id_source = 'post_is_course';
+			} elseif ( $post_id && function_exists( 'learndash_get_course_id' ) ) {
+				$course_id = (int) learndash_get_course_id( $post_id );
+				$id_source = 'learndash_get_course_id';
+			} else {
+				$course_id = 0;
+				$id_source = 'not_found';
+			}
+
+			$sfwd_result   = null;
+			$filter_result = null;
+
+			if ( $course_id && is_user_logged_in() && function_exists( 'sfwd_lms_has_access' ) ) {
+				$sfwd_result = (bool) sfwd_lms_has_access( $course_id, $user_id );
+				$filter_result = (bool) apply_filters(
+					'learndash_student_shortcode_view_content',
+					$sfwd_result,
+					[ 'course_id' => $course_id, 'user_id' => $user_id, 'content' => '' ]
+				);
+			}
+
+			$info['course_id_override']    = $override_id;
+			$info['course_id_resolved']    = $course_id;
+			$info['course_id_source']      = $id_source;
+			$info['sfwd_lms_has_access']   = $sfwd_result;
+			$info['after_filter']          = $filter_result;
+			$info['sfwd_function_exists']  = function_exists( 'sfwd_lms_has_access' );
+		}
+
+		if ( in_array( $condition, [ 'mp_has_membership', 'mp_no_membership', 'mp_has_specific', 'mp_not_specific' ], true ) ) {
+			$info['mepruser_class_exists'] = class_exists( 'MeprUser' );
+			$info['membership_id_arg']     = $args['membership_id'] ?? 0;
+		}
+
+		return $info;
+	}
 
 	/**
 	 * Evaluate a condition string and return whether it is met.
