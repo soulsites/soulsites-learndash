@@ -190,7 +190,26 @@ class Element_Conditions {
 			return;
 		}
 
-		$condition = $element->get_settings_for_display( 'ss_condition_type' );
+		// DEBUG: Alle Settings auslesen, bevor irgendetwas gefiltert wird.
+		$raw_settings = $element->get_settings();
+		$condition_raw     = isset( $raw_settings['ss_condition_type'] ) ? $raw_settings['ss_condition_type'] : '__KEY_MISSING__';
+		$condition_display = $element->get_settings_for_display( 'ss_condition_type' );
+
+		// Nur loggen wenn Key vorhanden oder condition_display gesetzt.
+		if ( $condition_raw !== '__KEY_MISSING__' || ! empty( $condition_display ) ) {
+			echo '<script>console.log("[SS-Debug]", ' . wp_json_encode( [
+				'element_type'      => $element->get_name(),
+				'element_id'        => $element->get_id(),
+				'condition_raw'     => $condition_raw,
+				'condition_display' => $condition_display,
+				'all_ss_keys'       => array_filter(
+					array_keys( $raw_settings ),
+					function( $k ) { return strpos( $k, 'ss_' ) === 0; }
+				),
+			] ) . ');</script>';
+		}
+
+		$condition = $condition_display;
 
 		if ( empty( $condition ) ) {
 			return;
@@ -204,7 +223,6 @@ class Element_Conditions {
 		$result = $this->check_condition( $condition, $args );
 		$debug  = $this->collect_debug_info( $element->get_id(), $condition, $args, $result );
 
-		// Debug-Ausgabe in die JS-Konsole (entfernen wenn nicht mehr benötigt).
 		echo '<script>console.log("[SS-Conditions] element_id=' . esc_js( $element->get_id() ) . '", ' . wp_json_encode( $debug ) . ');</script>';
 
 		if ( ! $result ) {
