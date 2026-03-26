@@ -132,8 +132,8 @@ class Element_Conditions {
 					''                    => esc_html__( 'Immer anzeigen', 'soulsites-learndash' ),
 					'logged_in'           => esc_html__( 'Logged In', 'soulsites-learndash' ),
 					'logged_out'          => esc_html__( 'Logged Out', 'soulsites-learndash' ),
-					'course_enrolled'     => esc_html__( 'LearnDash: Kurs eingeschrieben', 'soulsites-learndash' ),
-					'course_not_enrolled' => esc_html__( 'LearnDash: Kurs nicht eingeschrieben', 'soulsites-learndash' ),
+					'course_enrolled'     => esc_html__( 'Course enrolled', 'soulsites-learndash' ),
+					'course_not_enrolled' => esc_html__( 'Course not enrolled', 'soulsites-learndash' ),
 					'mp_has_membership'   => esc_html__( 'MemberPress: Aktive Mitgliedschaft', 'soulsites-learndash' ),
 					'mp_no_membership'    => esc_html__( 'MemberPress: Keine Mitgliedschaft', 'soulsites-learndash' ),
 					'mp_has_specific'     => esc_html__( 'MemberPress: In bestimmter Mitgliedschaft', 'soulsites-learndash' ),
@@ -235,21 +235,23 @@ class Element_Conditions {
 	}
 
 	/**
-	 * Check whether the current user is enrolled in the contextual course.
+	 * Check whether the current user has access to the contextual course.
+	 *
+	 * Works with any access model:
+	 *  - LearnDash direct enrollment (free courses, manual enrollment)
+	 *  - WooCommerce + LearnDash integration
+	 *  - MemberPress + LearnDash integration (auto-enroll via membership)
+	 *  - MemberPress content-protection rules without auto-enrollment
 	 *
 	 * The course context is resolved in the following order:
 	 *  1. Current post is a course (`sfwd-courses`).
 	 *  2. Current post is a lesson/topic — resolved via `learndash_get_course_id()`.
 	 *  3. No course context → return false (condition not met).
 	 *
-	 * @param bool $should_be_enrolled TRUE = check "is enrolled", FALSE = check "is not enrolled".
+	 * @param bool $should_be_enrolled TRUE = check "has access", FALSE = check "has no access".
 	 * @return bool
 	 */
 	private function check_course_access( $should_be_enrolled ) {
-		if ( ! function_exists( 'sfwd_lms_has_access' ) ) {
-			return false;
-		}
-
 		$post_id = get_the_ID();
 		if ( ! $post_id ) {
 			return false;
@@ -268,14 +270,82 @@ class Element_Conditions {
 			return false;
 		}
 
-		// Nicht eingeloggte Nutzer sind nie eingeschrieben.
+		// Nicht eingeloggte Nutzer haben keinen Zugang.
 		if ( ! is_user_logged_in() ) {
 			return ! $should_be_enrolled;
 		}
 
-		$is_enrolled = (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
+		$user_id    = get_current_user_id();
+		$has_access = false;
 
-		return $should_be_enrolled ? $is_enrolled : ! $is_enrolled;
+		// Primär: LearnDash-eigene Zugriffsprüfung.
+		// Deckt direkte Einschreibung, WooCommerce-Integration und
+		// MemberPress-Integrationen mit Auto-Enroll ab.
+		if ( function_exists( 'sfwd_lms_has_access' ) ) {
+			$has_access = (bool) sfwd_lms_has_access( $course_id, $user_id );
+		}
+
+		// Fallback: MemberPress-Content-Protection-Regeln.
+		// Greift, wenn MemberPress den Kurszugang über Membership-Regeln steuert,
+		// ohne den Nutzer gleichzeitig in LearnDash einzuschreiben.
+		if ( ! $has_access && class_exists( 'MeprUser' ) ) {
+			$has_access = $this->check_memberpress_course_access( $user_id, $course_id );
+		}
+
+		return $should_be_enrolled ? $has_access : ! $has_access;
+	}
+
+	/**
+	 * Check course access via MemberPress content-protection rules.
+	 *
+	 * Queries mepr-rules posts for "single" rules that protect $course_id and
+	 * verifies whether the user holds an active subscription to the associated membership.
+	 *
+	 * @param int $user_id   WordPress user ID.
+	 * @param int $course_id LearnDash course post ID.
+	 * @return bool
+	 */
+	private function check_memberpress_course_access( $user_id, $course_id ) {
+		$mepr_user = new \MeprUser( $user_id );
+
+		// Schnellausstieg: Nutzer hat keine aktive Mitgliedschaft.
+		if ( empty( $mepr_user->active_memberships() ) ) {
+			return false;
+		}
+
+		// MemberPress-Regeln für diesen spezifischen Kurs-Post abfragen.
+		// Regeln vom Typ "single" schützen einen einzelnen Post anhand seiner ID.
+		$rule_ids = get_posts( [
+			'post_type'      => 'mepr-rules',
+			'posts_per_page' => 50,
+			'fields'         => 'ids',
+			'meta_query'     => [
+				'relation' => 'AND',
+				[
+					'key'     => 'mepr_type',
+					'value'   => 'single',
+					'compare' => '=',
+				],
+				[
+					'key'     => 'mepr_subject',
+					'value'   => (string) $course_id,
+					'compare' => '=',
+				],
+			],
+		] );
+
+		if ( empty( $rule_ids ) ) {
+			return false;
+		}
+
+		foreach ( $rule_ids as $rule_id ) {
+			$product_id = (int) get_post_meta( $rule_id, 'mepr_product_id', true );
+			if ( $product_id && $mepr_user->is_already_subscribed_to( $product_id ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
