@@ -301,8 +301,22 @@ class Element_Conditions {
 				return ! $should_have_access;
 			}
 
+			$user_id = get_current_user_id();
+
 			// --- Zugriffsprüfung identisch zum [student]-Shortcode ---
-			$has_access = (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
+			$has_access = (bool) sfwd_lms_has_access( $course_id, $user_id );
+
+			// Filter anwenden – exakt wie der [student]-Shortcode (seit LearnDash 4.4.0).
+			// MemberPress und andere Integrationen können hier den Zugang überschreiben.
+			$has_access = (bool) apply_filters(
+				'learndash_student_shortcode_view_content',
+				$has_access,
+				[
+					'course_id' => $course_id,
+					'user_id'   => $user_id,
+					'content'   => '',
+				]
+			);
 
 			return $should_have_access ? $has_access : ! $has_access;
 
