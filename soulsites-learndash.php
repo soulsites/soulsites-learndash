@@ -139,13 +139,29 @@ final class SoulSites_LearnDash_Elementor {
 			admin_url( 'post.php?post=' . $post->ID . '&action=edit' )
 		);
 
+		// PHPMailer-Fehler abfangen (tiefere Ebene als wp_mail() Return-Wert).
+		$mailer_error = null;
+		$error_handler = function( \WP_Error $error ) use ( &$mailer_error ) {
+			$mailer_error = $error->get_error_message();
+		};
+		add_action( 'wp_mail_failed', $error_handler );
+
 		$sent = wp_mail( $email, $subject, $body );
 
-		if ( ! $sent ) {
+		remove_action( 'wp_mail_failed', $error_handler );
+
+		if ( $sent ) {
 			error_log( sprintf(
-				'[SoulSites LearnDash] wp_mail() failed for pending course notification. To: %s | Course ID: %d',
+				'[SoulSites LearnDash] wp_mail() erfolgreich. E-Mail an: %s | Kurs-ID: %d',
 				$email,
 				$post->ID
+			) );
+		} else {
+			error_log( sprintf(
+				'[SoulSites LearnDash] wp_mail() fehlgeschlagen. An: %s | Kurs-ID: %d | PHPMailer-Fehler: %s',
+				$email,
+				$post->ID,
+				$mailer_error ?? '(kein Fehlertext)'
 			) );
 		}
 	}
