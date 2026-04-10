@@ -95,6 +95,14 @@ final class SoulSites_LearnDash_Elementor {
 		if ( $post->post_type !== 'sfwd-courses' ) {
 			return;
 		}
+
+		error_log( sprintf(
+			'[SoulSites LearnDash] Pending-Hook ausgelöst. Kurs-ID: %d | enabled: %s | email: "%s"',
+			$post->ID,
+			\SoulSites\Settings_Page::get_option( 'pending_course_email_enabled' ) ? 'ja' : 'nein',
+			\SoulSites\Settings_Page::get_option( 'pending_course_email_address', '' )
+		) );
+
 		if ( ! \SoulSites\Settings_Page::get_option( 'pending_course_email_enabled' ) ) {
 			return;
 		}
