@@ -206,6 +206,35 @@ body.post-type-sfwd-courses ul.acf-checkbox-list.acf-hl li {
     border: 1px solid #fbbf24;
 }
 
+/* Text input rows (e.g. email address) */
+.soulsites-text-input-row {
+    padding: 10px 0 6px;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.soulsites-text-input-row label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.soulsites-text-input-row .soulsites-toggle-label {
+    font-size: 14px;
+    color: #334155;
+    font-weight: 500;
+}
+
+.soulsites-text-input-row input.regular-text {
+    width: 100%;
+    max-width: 340px;
+}
+
+.soulsites-text-input-row .description {
+    margin: 6px 0 4px;
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
 /* Footer */
 .soulsites-settings-footer {
     margin-top: 24px;
