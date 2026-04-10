@@ -59,6 +59,8 @@ final class SoulSites_LearnDash_Elementor {
 		add_action( 'plugins_loaded', [ $this, 'init' ], 20 );
 		// Editor disable runs at init, independent of Elementor
 		add_action( 'init', [ $this, 'apply_editor_settings' ] );
+		// Kurs-Pending-Benachrichtigung – läuft unabhängig von Elementor
+		add_action( 'transition_post_status', [ $this, 'maybe_send_pending_course_email' ], 10, 3 );
 	}
 
 	/**
@@ -77,6 +79,48 @@ final class SoulSites_LearnDash_Elementor {
 				remove_post_type_support( $post_type, 'editor' );
 			}
 		}
+	}
+
+	/**
+	 * Send notification email when a LearnDash course is set to "pending".
+	 *
+	 * @param string   $new  New post status.
+	 * @param string   $old  Previous post status.
+	 * @param \WP_Post $post Post object.
+	 */
+	public function maybe_send_pending_course_email( $new, $old, $post ) {
+		if ( $new !== 'pending' || $old === 'pending' ) {
+			return;
+		}
+		if ( $post->post_type !== 'sfwd-courses' ) {
+			return;
+		}
+		if ( ! \SoulSites\Settings_Page::get_option( 'pending_course_email_enabled' ) ) {
+			return;
+		}
+
+		$email = \SoulSites\Settings_Page::get_option( 'pending_course_email_address', '' );
+		if ( empty( $email ) ) {
+			return;
+		}
+
+		$author     = get_userdata( $post->post_author );
+		$tutor_name = $author ? $author->display_name : __( 'Unbekannt', 'soulsites-learndash' );
+
+		wp_mail(
+			$email,
+			sprintf(
+				/* translators: %s: course title */
+				__( 'Neuer Kurs zur Überprüfung: %s', 'soulsites-learndash' ),
+				$post->post_title
+			),
+			sprintf(
+				/* translators: 1: tutor display name, 2: admin edit URL */
+				__( "Tutor: %1\$s\nLink: %2\$s", 'soulsites-learndash' ),
+				$tutor_name,
+				admin_url( 'post.php?post=' . $post->ID . '&action=edit' )
+			)
+		);
 	}
 
 	/**

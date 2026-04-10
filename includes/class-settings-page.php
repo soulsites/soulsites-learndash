@@ -110,6 +110,8 @@ class Settings_Page {
 			'enable_widget_acf_repeater'          => 1,
 			// Query Filter
 			'enable_query_course_purchase'        => 1,
+			// E-Mail Benachrichtigungen
+			'pending_course_email_enabled'        => 0,
 		];
 	}
 
@@ -142,12 +144,17 @@ class Settings_Page {
 	 * @return array
 	 */
 	public function sanitize_settings( $input ) {
-		$sanitized  = [];
-		$bool_keys  = array_keys( self::get_defaults() );
+		$sanitized = [];
+		$bool_keys = array_keys( self::get_defaults() );
 
 		foreach ( $bool_keys as $key ) {
 			$sanitized[ $key ] = ! empty( $input[ $key ] ) ? 1 : 0;
 		}
+
+		// E-Mail-Adresse (Textfeld)
+		$sanitized['pending_course_email_address'] = isset( $input['pending_course_email_address'] )
+			? sanitize_email( $input['pending_course_email_address'] )
+			: '';
 
 		return $sanitized;
 	}
@@ -192,6 +199,36 @@ class Settings_Page {
 		<?php if ( $description ) : ?>
 			<p class="description"><?php echo esc_html( $description ); ?></p>
 		<?php endif;
+	}
+
+	/**
+	 * Render a single text input row.
+	 *
+	 * @param string $key         Option key.
+	 * @param string $label       Visible label.
+	 * @param string $description Optional description below the input.
+	 * @param string $type        Input type attribute (e.g. "text", "email"). Default "text".
+	 */
+	private function render_text_input( $key, $label, $description = '', $type = 'text' ) {
+		$value = self::get_option( $key, '' );
+		$name  = esc_attr( self::OPTION_NAME . '[' . $key . ']' );
+		?>
+		<div class="soulsites-text-input-row">
+			<label for="<?php echo esc_attr( $key ); ?>">
+				<span class="soulsites-toggle-label"><?php echo esc_html( $label ); ?></span>
+			</label>
+			<input
+				type="<?php echo esc_attr( $type ); ?>"
+				id="<?php echo esc_attr( $key ); ?>"
+				name="<?php echo $name; ?>"
+				value="<?php echo esc_attr( $value ); ?>"
+				class="regular-text"
+			/>
+			<?php if ( $description ) : ?>
+				<p class="description"><?php echo esc_html( $description ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	/**
@@ -399,6 +436,28 @@ class Settings_Page {
 							'enable_query_course_purchase',
 							__( 'Kauf-Status Filter', 'soulsites-learndash' ),
 							__( 'Fügt Loop-Widgets einen Filter hinzu, um Kurse nach dem Kauf-/Einschreibestatus des aktuellen Benutzers zu filtern (Gekauft / Nicht gekauft). Mit eingebautem Performance-Cache.', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 6. E-Mail Benachrichtigungen
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'email-alt',
+					__( 'E-Mail Benachrichtigungen', 'soulsites-learndash' ),
+					__( 'Sendet automatisch eine E-Mail, wenn ein Kurs zur Überprüfung eingereicht wird (Status wechselt auf "Ausstehend").', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'pending_course_email_enabled',
+							__( 'Benachrichtigung bei ausstehenden Kursen aktivieren', 'soulsites-learndash' ),
+							__( 'Sendet eine E-Mail, sobald ein Kurs (sfwd-courses) in den Status "Ausstehend" (pending) wechselt.', 'soulsites-learndash' )
+						);
+						$this->render_text_input(
+							'pending_course_email_address',
+							__( 'Empfänger-E-Mail-Adresse', 'soulsites-learndash' ),
+							__( 'E-Mail-Adresse, an die die Benachrichtigung gesendet wird. Muss ausgefüllt sein, damit die Benachrichtigung verschickt wird.', 'soulsites-learndash' ),
+							'email'
 						);
 					}
 				);
