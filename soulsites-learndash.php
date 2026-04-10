@@ -107,20 +107,28 @@ final class SoulSites_LearnDash_Elementor {
 		$author     = get_userdata( $post->post_author );
 		$tutor_name = $author ? $author->display_name : __( 'Unbekannt', 'soulsites-learndash' );
 
-		wp_mail(
-			$email,
-			sprintf(
-				/* translators: %s: course title */
-				__( 'Neuer Kurs zur Überprüfung: %s', 'soulsites-learndash' ),
-				$post->post_title
-			),
-			sprintf(
-				/* translators: 1: tutor display name, 2: admin edit URL */
-				__( "Tutor: %1\$s\nLink: %2\$s", 'soulsites-learndash' ),
-				$tutor_name,
-				admin_url( 'post.php?post=' . $post->ID . '&action=edit' )
-			)
+		$subject = sprintf(
+			/* translators: %s: course title */
+			__( 'Neuer Kurs zur Überprüfung: %s', 'soulsites-learndash' ),
+			$post->post_title
 		);
+
+		$body = sprintf(
+			/* translators: 1: tutor display name, 2: admin edit URL */
+			__( "Tutor: %1\$s\nLink: %2\$s", 'soulsites-learndash' ),
+			$tutor_name,
+			admin_url( 'post.php?post=' . $post->ID . '&action=edit' )
+		);
+
+		$sent = wp_mail( $email, $subject, $body );
+
+		if ( ! $sent ) {
+			error_log( sprintf(
+				'[SoulSites LearnDash] wp_mail() failed for pending course notification. To: %s | Course ID: %d',
+				$email,
+				$post->ID
+			) );
+		}
 	}
 
 	/**
