@@ -271,3 +271,8 @@ display: block;
 #acf-group_698648cd36dcd .acf-repeater .acf-row-handle {
     text-align: end;
 }
+
+#acf-group_698648cd36dcd .acf-repeater .acf-icon.-collapse {
+    margin-left: 0px !important;
+    display: inline-block !imporant;
+}
