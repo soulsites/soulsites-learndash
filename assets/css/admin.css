@@ -250,3 +250,24 @@ body.post-type-sfwd-courses ul.acf-checkbox-list.acf-hl li {
 #acf-group_698648cd36dcd .acf-repeater .acf-row-handle.order {
     width: 100%
 }
+
+acf-group_698648cd36dcd .acf-repeater .acf-row-handle .acf-icon {
+display: block;
+    position: absolute;
+    top: 24px;
+    right: 52px;
+}
+
+#acf-group_698648cd36dcd .acf-repeater td.acf-row-handle.remove {
+    width: 100%;
+    height: 36px;
+}
+
+#acf-group_698648cd36dcd .acf-repeater .acf-row-handle .acf-icon {
+    position: relative;
+    
+}
+
+#acf-group_698648cd36dcd .acf-repeater .acf-row-handle {
+    text-align: end;
+}
