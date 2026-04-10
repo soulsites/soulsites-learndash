@@ -259,7 +259,7 @@ display: block;
 }
 
 #acf-group_698648cd36dcd .acf-repeater td.acf-row-handle.remove {
-    width: 100%;
+    width: 96%;
     height: 36px;
 }
 
@@ -276,3 +276,8 @@ display: block;
     margin-left: 0px !important;
     display: none !imporant;
 }
+
+#acf-group_698648cd36dcd .acf-repeater .acf-row-handle .acf-icon.-minus {
+    top: 0%;
+}
+
