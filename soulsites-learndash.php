@@ -89,6 +89,17 @@ final class SoulSites_LearnDash_Elementor {
 	 * @param \WP_Post $post Post object.
 	 */
 	public function maybe_send_pending_course_email( $new, $old, $post ) {
+		// Frühes Logging: zeigt ob der Hook überhaupt feuert, unabhängig von Bedingungen.
+		if ( $post->post_type === 'sfwd-courses' || $new === 'pending' ) {
+			error_log( sprintf(
+				'[SoulSites LearnDash] transition_post_status gefeuert. Post-ID: %d | Post-Type: "%s" | Status: "%s" → "%s"',
+				$post->ID,
+				$post->post_type,
+				$old,
+				$new
+			) );
+		}
+
 		if ( $new !== 'pending' || $old === 'pending' ) {
 			return;
 		}
@@ -97,7 +108,7 @@ final class SoulSites_LearnDash_Elementor {
 		}
 
 		error_log( sprintf(
-			'[SoulSites LearnDash] Pending-Hook ausgelöst. Kurs-ID: %d | enabled: %s | email: "%s"',
+			'[SoulSites LearnDash] Kurs geht auf "pending" – prüfe Einstellungen. Kurs-ID: %d | enabled: %s | email: "%s"',
 			$post->ID,
 			\SoulSites\Settings_Page::get_option( 'pending_course_email_enabled' ) ? 'ja' : 'nein',
 			\SoulSites\Settings_Page::get_option( 'pending_course_email_address', '' )
