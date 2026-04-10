@@ -246,3 +246,7 @@ body.post-type-sfwd-courses ul.acf-checkbox-list.acf-hl li {
     padding: 0 20px;
     font-size: 14px;
 }
+
+#acf-group_698648cd36dcd .acf-repeater .acf-row-handle.order {
+    width: 100%
+}
