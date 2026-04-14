@@ -110,6 +110,7 @@ class Settings_Page {
 			'enable_widget_acf_repeater'          => 1,
 			// Query Filter
 			'enable_query_course_purchase'        => 1,
+			'enable_query_tutor_courses'          => 1,
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
 		];
@@ -436,6 +437,11 @@ class Settings_Page {
 							'enable_query_course_purchase',
 							__( 'Kauf-Status Filter', 'soulsites-learndash' ),
 							__( 'Fügt Loop-Widgets einen Filter hinzu, um Kurse nach dem Kauf-/Einschreibestatus des aktuellen Benutzers zu filtern (Gekauft / Nicht gekauft). Mit eingebautem Performance-Cache.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_query_tutor_courses',
+							__( 'Tutor-Kurse Query (Query ID: tutor_courses)', 'soulsites-learndash' ),
+							__( 'Aktiviert die Elementor Query ID "tutor_courses". Filtert sfwd-courses nach dem ACF-Feld am Kurs, das die aktuelle Tutor-Post-ID enthält. Feldname per Filter "soulsites_tutor_courses_field_name" anpassbar (Standard: "tutor").', 'soulsites-learndash' )
 						);
 					}
 				);
