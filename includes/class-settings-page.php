@@ -104,6 +104,7 @@ class Settings_Page {
 			'enable_tag_tutor_bio'                => 1,
 			'enable_tag_tutor_foto'               => 1,
 			'enable_tag_tutor_link'               => 1,
+			'enable_tag_tutor_course_categories'  => 1,
 			// Widgets
 			'enable_widget_progress_bar'          => 1,
 			'enable_widget_course_content'        => 1,
@@ -395,6 +396,11 @@ class Settings_Page {
 							'enable_tag_tutor_link',
 							__( 'Tutor-Link', 'soulsites-learndash' ),
 							__( 'Gibt den Permalink zum Tutor-Beitrag aus.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_tutor_course_categories',
+							__( 'Kurs-Kategorien', 'soulsites-learndash' ),
+							__( 'Gibt die Kategorien des Kurses aus einem ACF-Taxonomie-Feld aus (kommagetrennt).', 'soulsites-learndash' )
 						);
 					}
 				);

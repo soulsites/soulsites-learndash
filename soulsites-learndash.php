@@ -342,6 +342,7 @@ final class SoulSites_LearnDash_Elementor {
 				'enable_tag_tutor_bio'                => [ 'class-tutor-bio.php',                'SoulSites\Dynamic_Tags\Tutor_Bio' ],
 				'enable_tag_tutor_foto'               => [ 'class-tutor-foto.php',               'SoulSites\Dynamic_Tags\Tutor_Foto' ],
 				'enable_tag_tutor_link'               => [ 'class-tutor-link.php',               'SoulSites\Dynamic_Tags\Tutor_Link' ],
+				'enable_tag_tutor_course_categories'  => [ 'class-tutor-course-categories.php',  'SoulSites\Dynamic_Tags\Tutor_Course_Categories' ],
 			];
 
 			// Collect active tags
