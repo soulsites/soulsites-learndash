@@ -432,26 +432,39 @@ final class SoulSites_LearnDash_Elementor {
 	 * Initialize Query Filters
 	 */
 	public function init_query_filters() {
-		if ( ! \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' ) ) {
-			return;
+		// Course Purchase Query
+		if ( \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' ) ) {
+			try {
+				$query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
+				if ( file_exists( $query_file ) ) {
+					require_once $query_file;
+				}
+
+				if ( class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+					new SoulSites\Query\Course_Purchase_Query();
+
+					add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+					add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+				}
+			} catch ( \Exception $e ) {
+				// Bei Fehler nichts tun
+			}
 		}
 
-		try {
-			$query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
-			if ( file_exists( $query_file ) ) {
-				require_once $query_file;
+		// Tutor Courses Query
+		if ( \SoulSites\Settings_Page::get_option( 'enable_query_tutor_courses' ) ) {
+			try {
+				$tutor_query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-tutor-courses-query.php';
+				if ( file_exists( $tutor_query_file ) ) {
+					require_once $tutor_query_file;
+				}
+
+				if ( class_exists( 'SoulSites\Query\Tutor_Courses_Query' ) ) {
+					new SoulSites\Query\Tutor_Courses_Query();
+				}
+			} catch ( \Exception $e ) {
+				// Bei Fehler nichts tun
 			}
-
-			if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
-				return;
-			}
-
-			new SoulSites\Query\Course_Purchase_Query();
-
-			add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
-			add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
-		} catch ( \Exception $e ) {
-			return;
 		}
 	}
 
