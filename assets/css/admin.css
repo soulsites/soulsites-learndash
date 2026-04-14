@@ -281,3 +281,17 @@ display: block;
     top: 0%;
 }
 
+.acf-field.acf-field-url.acf-field-69cf8e8433ac9 {
+    padding: 24px;
+}
+
+.categorychecklist-holder {
+    max-height: none;
+    border: none;
+}
+
+.categorychecklist-holder ul.categorychecklist > li:first-child {
+    margin-left: 0;
+    padding-left: 0;
+}
+
