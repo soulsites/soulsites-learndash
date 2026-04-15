@@ -216,16 +216,25 @@ class Element_Conditions {
 			// Zugang zu einem bestimmten Kurs prüfen.
 			$has_access = $this->user_has_course_access( $course_id, $user_id );
 
-			// Filter anwenden – identisch zum [student]-Shortcode (seit LearnDash 4.4.0).
-			// Integrationen (WooCommerce, MemberPress etc.) können hier überschreiben.
+			/**
+			 * Allows external integrations (WooCommerce, MemberPress, etc.) to override
+			 * the access result for a specific course and user.
+			 *
+			 * HINWEIS: Wir verwenden hier NICHT learndash_student_shortcode_view_content,
+			 * weil dieser LearnDash-Filter für Content-Strings (nicht Booleans) gedacht
+			 * ist. Callbacks, die in diesen Filter eingehakt sind, erwarten einen String
+			 * als erstes Argument und geben oft einen nicht-leeren String zurück, was bei
+			 * (bool)-Cast immer true ergäbe – dadurch würde course_not_enrolled nie zeigen.
+			 *
+			 * @param bool $has_access Whether the user has access.
+			 * @param int  $course_id  The course ID.
+			 * @param int  $user_id    The user ID.
+			 */
 			$has_access = (bool) apply_filters(
-				'learndash_student_shortcode_view_content',
+				'soulsites_learndash_course_access',
 				$has_access,
-				[
-					'course_id' => $course_id,
-					'user_id'   => $user_id,
-					'content'   => '',
-				]
+				$course_id,
+				$user_id
 			);
 
 			return $has_access;
@@ -247,7 +256,8 @@ class Element_Conditions {
 	 * Reihenfolge:
 	 *  1. Explizite ID aus dem Editor-Feld (wird als Kurs-Post-Type validiert).
 	 *  2. Aktueller Post ist ein Kurs-bezogener Post-Type → learndash_get_course_id().
-	 *  3. Kein Kontext erkennbar → 0 (kein Kurs).
+	 *  3. Aktueller Post ist eine WooCommerce-Produktseite → verknüpfter LearnDash-Kurs.
+	 *  4. Kein Kontext erkennbar → 0 (kein Kurs).
 	 *
 	 * @param int $override_course_id
 	 * @return int  Aufgelöste Kurs-ID oder 0.
@@ -267,10 +277,19 @@ class Element_Conditions {
 			return 0;
 		}
 
-		// Auto-Detect: gehört der aktuelle Post zu einem Kurs?
+		// Auto-Detect: gehört der aktuelle Post zu einem LearnDash-Kurs?
 		if ( function_exists( 'learndash_get_post_types' ) && function_exists( 'learndash_get_course_id' ) ) {
 			if ( in_array( get_post_type( $post_id ), learndash_get_post_types( 'course' ), true ) ) {
 				return (int) learndash_get_course_id( $post_id );
+			}
+		}
+
+		// WooCommerce-Produktseite: verknüpften LearnDash-Kurs ermitteln.
+		// LearnDash WooCommerce Integration speichert die Kurs-IDs im Produkt-Meta '_related_course'.
+		if ( 'product' === get_post_type( $post_id ) ) {
+			$related = get_post_meta( $post_id, '_related_course', true );
+			if ( ! empty( $related ) && is_array( $related ) ) {
+				return (int) reset( $related );
 			}
 		}
 

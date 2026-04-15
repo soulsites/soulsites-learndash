@@ -13,6 +13,45 @@ if ( ! class_exists( '\ElementorPro\Modules\DisplayConditions\Conditions\Base\Co
     return;
 }
 
+if ( ! function_exists( __NAMESPACE__ . '\soulsites_get_display_condition_course_id' ) ) :
+/**
+ * Gemeinsame Hilfsfunktion: Kurs-ID aus aktuellem Post ermitteln.
+ * Unterstützt LearnDash-Kursseiten (sfwd-courses, Lektionen, Themen)
+ * sowie WooCommerce-Produktseiten mit verknüpftem LearnDash-Kurs.
+ *
+ * @return int  Kurs-ID oder 0, wenn kein Kurs ermittelbar.
+ */
+function soulsites_get_display_condition_course_id(): int {
+    $post_id = (int) get_the_ID();
+    if ( ! $post_id ) {
+        return 0;
+    }
+
+    // LearnDash-Kursseite (sfwd-courses)
+    if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
+        return $post_id;
+    }
+
+    // LearnDash-Lektionen / Themen / Quizze → übergeordneten Kurs ermitteln.
+    if ( function_exists( 'learndash_get_post_types' ) && function_exists( 'learndash_get_course_id' ) ) {
+        if ( in_array( get_post_type( $post_id ), learndash_get_post_types( 'course' ), true ) ) {
+            return (int) learndash_get_course_id( $post_id );
+        }
+    }
+
+    // WooCommerce-Produktseite: verknüpften LearnDash-Kurs ermitteln.
+    // LearnDash WooCommerce Integration speichert Kurs-IDs im Meta '_related_course'.
+    if ( 'product' === get_post_type( $post_id ) ) {
+        $related = get_post_meta( $post_id, '_related_course', true );
+        if ( ! empty( $related ) && is_array( $related ) ) {
+            return (int) reset( $related );
+        }
+    }
+
+    return 0;
+}
+endif;
+
 /**
  * Display Condition: Course Is Enrolled
  * Zeigt ein Element nur wenn der Benutzer im aktuellen Kurs eingeschrieben ist.
@@ -40,8 +79,8 @@ class Course_Is_Enrolled_Display_Condition extends \ElementorPro\Modules\Display
             return false;
         }
 
-        $course_id = get_the_ID();
-        if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+        $course_id = soulsites_get_display_condition_course_id();
+        if ( ! $course_id ) {
             return false;
         }
 
@@ -76,8 +115,8 @@ class Course_Not_Enrolled_Display_Condition extends \ElementorPro\Modules\Displa
     }
 
     public function check( $args ): bool {
-        $course_id = get_the_ID();
-        if ( ! $course_id || get_post_type( $course_id ) !== 'sfwd-courses' ) {
+        $course_id = soulsites_get_display_condition_course_id();
+        if ( ! $course_id ) {
             return false;
         }
 
@@ -89,6 +128,6 @@ class Course_Not_Enrolled_Display_Condition extends \ElementorPro\Modules\Displa
             return true;
         }
 
-        return ! sfwd_lms_has_access( $course_id, get_current_user_id() );
+        return ! (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
     }
 }
