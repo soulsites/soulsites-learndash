@@ -89,6 +89,8 @@ class Settings_Page {
 			'disable_editor_courses'              => 0,
 			'disable_editor_lessons'              => 0,
 			'disable_editor_topics'               => 0,
+			// Element Conditions (Erweiterte Bedingungen im Advanced-Tab)
+			'enable_element_conditions'           => 1,
 			// Display Conditions
 			'enable_condition_login_status'       => 1,
 			'enable_condition_course_enrolled'    => 1,
@@ -310,7 +312,23 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 2. Elementor Anzeigebedingungen
+				// 2. Erweiterte Bedingungen (Element-Level)
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'hidden',
+					__( 'Erweiterte Bedingungen (Element-Level)', 'soulsites-learndash' ),
+					__( 'Fügt jedem Elementor-Element im Advanced-Tab einen „Erweiterte Bedingungen"-Abschnitt hinzu. Damit kann die Sichtbarkeit einzelner Elemente direkt nach Login-Status oder Kurs-Einschreibung gesteuert werden.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'enable_element_conditions',
+							__( 'Erweiterte Bedingungen aktivieren', 'soulsites-learndash' ),
+							__( 'Deaktivieren, wenn der Elementor-Editor nicht mehr korrekt lädt oder die Funktion nicht benötigt wird.', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 3. Elementor Anzeigebedingungen (Pro Display Conditions)
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'visibility',
@@ -336,7 +354,7 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 3. Dynamische Tags
+				// 4. Dynamische Tags
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'tag',
@@ -406,7 +424,7 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 4. Elementor Widgets
+				// 5. Elementor Widgets
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'screenoptions',
@@ -432,7 +450,7 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 5. Loop-Filter / Abfragen
+				// 6. Loop-Filter / Abfragen
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'filter',
@@ -453,7 +471,7 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 6. E-Mail Benachrichtigungen
+				// 7. E-Mail Benachrichtigungen
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'email-alt',

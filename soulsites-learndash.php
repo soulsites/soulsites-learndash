@@ -3,7 +3,7 @@
  * Plugin Name: SoulSites LearnDash for Elementor
  * Plugin URI: https://soulsites.de
  * Description: Erweitert Elementor mit LearnDash Dynamic Tags und Display Conditions für Login Status und Kurs-Kaufstatus.
- * Version: 1.2.2
+ * Version: 1.2.3
  * Author: Christian Wedel
  * Author URI: https://soulsites.de
  * Text Domain: soulsites-learndash
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'SOULSITES_LEARNDASH_VERSION', '1.2.2' );
+define( 'SOULSITES_LEARNDASH_VERSION', '1.2.3' );
 define( 'SOULSITES_LEARNDASH_FILE', __FILE__ );
 define( 'SOULSITES_LEARNDASH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
@@ -89,31 +89,12 @@ final class SoulSites_LearnDash_Elementor {
 	 * @param \WP_Post $post Post object.
 	 */
 	public function maybe_send_pending_course_email( $new, $old, $post ) {
-		// Frühes Logging: zeigt ob der Hook überhaupt feuert, unabhängig von Bedingungen.
-		if ( $post->post_type === 'sfwd-courses' || $new === 'pending' ) {
-			error_log( sprintf(
-				'[SoulSites LearnDash] transition_post_status gefeuert. Post-ID: %d | Post-Type: "%s" | Status: "%s" → "%s"',
-				$post->ID,
-				$post->post_type,
-				$old,
-				$new
-			) );
-		}
-
 		if ( $new !== 'pending' || $old === 'pending' ) {
 			return;
 		}
 		if ( $post->post_type !== 'sfwd-courses' ) {
 			return;
 		}
-
-		error_log( sprintf(
-			'[SoulSites LearnDash] Kurs geht auf "pending" – prüfe Einstellungen. Kurs-ID: %d | enabled: %s | email: "%s"',
-			$post->ID,
-			\SoulSites\Settings_Page::get_option( 'pending_course_email_enabled' ) ? 'ja' : 'nein',
-			\SoulSites\Settings_Page::get_option( 'pending_course_email_address', '' )
-		) );
-
 		if ( ! \SoulSites\Settings_Page::get_option( 'pending_course_email_enabled' ) ) {
 			return;
 		}
@@ -150,15 +131,9 @@ final class SoulSites_LearnDash_Elementor {
 
 		remove_action( 'wp_mail_failed', $error_handler );
 
-		if ( $sent ) {
+		if ( ! $sent ) {
 			error_log( sprintf(
-				'[SoulSites LearnDash] wp_mail() erfolgreich. E-Mail an: %s | Kurs-ID: %d',
-				$email,
-				$post->ID
-			) );
-		} else {
-			error_log( sprintf(
-				'[SoulSites LearnDash] wp_mail() fehlgeschlagen. An: %s | Kurs-ID: %d | PHPMailer-Fehler: %s',
+				'[SoulSites LearnDash] wp_mail() fehlgeschlagen. An: %s | Kurs-ID: %d | Fehler: %s',
 				$email,
 				$post->ID,
 				$mailer_error ?? '(kein Fehlertext)'
@@ -195,7 +170,9 @@ final class SoulSites_LearnDash_Elementor {
 		add_action( 'elementor/dynamic_tags/register', [ $this, 'register_dynamic_tags' ], 10, 1 );
 		add_action( 'elementor/widgets/register', [ $this, 'register_widgets' ], 10, 1 );
 		add_action( 'elementor/init', [ $this, 'init_query_filters' ], 10 );
-		add_action( 'elementor/init', [ $this, 'init_element_conditions' ], 10 );
+		if ( \SoulSites\Settings_Page::get_option( 'enable_element_conditions' ) ) {
+			add_action( 'elementor/init', [ $this, 'init_element_conditions' ], 10 );
+		}
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
 	}
 

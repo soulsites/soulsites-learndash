@@ -90,7 +90,13 @@ class Element_Conditions {
 		}
 		$this->processed_elements[ $key ] = true;
 
-		$this->add_controls( $element );
+		// Try-catch: Falls die Elementor-API unerwartet eine Exception wirft
+		// (z. B. bei einem Versions-Mismatch), darf der Editor nicht einfrieren.
+		try {
+			$this->add_controls( $element );
+		} catch ( \Throwable $e ) {
+			// Fehlgeschlagen – Controls nicht hinzugefügt, aber Editor läuft weiter.
+		}
 	}
 
 	/** @param \Elementor\Element_Base $element */
