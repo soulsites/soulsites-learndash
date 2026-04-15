@@ -10,6 +10,37 @@ if ( ! class_exists( '\ElementorPro\Modules\DisplayConditions\Conditions\Base\Co
     return;
 }
 
+// Hilfsfunktion: Kurs-ID ermitteln (mit Guard, falls die Enrolled-Datei nicht geladen wurde).
+if ( ! function_exists( __NAMESPACE__ . '\soulsites_get_display_condition_course_id' ) ) {
+    /**
+     * Kurs-ID aus aktuellem Post ermitteln.
+     * Unterstützt LearnDash-Kursseiten sowie WooCommerce-Produktseiten.
+     *
+     * @return int Kurs-ID oder 0.
+     */
+    function soulsites_get_display_condition_course_id(): int {
+        $post_id = (int) get_the_ID();
+        if ( ! $post_id ) {
+            return 0;
+        }
+        if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
+            return $post_id;
+        }
+        if ( function_exists( 'learndash_get_post_types' ) && function_exists( 'learndash_get_course_id' ) ) {
+            if ( in_array( get_post_type( $post_id ), learndash_get_post_types( 'course' ), true ) ) {
+                return (int) learndash_get_course_id( $post_id );
+            }
+        }
+        if ( 'product' === get_post_type( $post_id ) ) {
+            $related = get_post_meta( $post_id, '_related_course', true );
+            if ( ! empty( $related ) && is_array( $related ) ) {
+                return (int) reset( $related );
+            }
+        }
+        return 0;
+    }
+}
+
 /**
  * Display Condition: Has Course Access
  * Zeigt ein Element wenn der Benutzer Zugang zum aktuellen Kurs hat.
@@ -38,12 +69,7 @@ class Course_Has_Access_Display_Condition extends \ElementorPro\Modules\DisplayC
             return false;
         }
 
-        $post_id = get_the_ID();
-        if ( ! $post_id ) {
-            return false;
-        }
-
-        $course_id = $this->get_current_course_id( $post_id );
+        $course_id = soulsites_get_display_condition_course_id();
         if ( ! $course_id ) {
             return false;
         }
@@ -53,18 +79,6 @@ class Course_Has_Access_Display_Condition extends \ElementorPro\Modules\DisplayC
         }
 
         return (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
-    }
-
-    private function get_current_course_id( $post_id ) {
-        if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
-            return $post_id;
-        }
-
-        if ( function_exists( 'learndash_get_course_id' ) ) {
-            return (int) learndash_get_course_id( $post_id );
-        }
-
-        return 0;
     }
 }
 
@@ -91,12 +105,7 @@ class Course_No_Access_Display_Condition extends \ElementorPro\Modules\DisplayCo
     }
 
     public function check( $args ): bool {
-        $post_id = get_the_ID();
-        if ( ! $post_id ) {
-            return false;
-        }
-
-        $course_id = $this->get_current_course_id( $post_id );
+        $course_id = soulsites_get_display_condition_course_id();
         if ( ! $course_id ) {
             return false;
         }
@@ -109,18 +118,6 @@ class Course_No_Access_Display_Condition extends \ElementorPro\Modules\DisplayCo
             return true;
         }
 
-        return ! sfwd_lms_has_access( $course_id, get_current_user_id() );
-    }
-
-    private function get_current_course_id( $post_id ) {
-        if ( get_post_type( $post_id ) === 'sfwd-courses' ) {
-            return $post_id;
-        }
-
-        if ( function_exists( 'learndash_get_course_id' ) ) {
-            return (int) learndash_get_course_id( $post_id );
-        }
-
-        return 0;
+        return ! (bool) sfwd_lms_has_access( $course_id, get_current_user_id() );
     }
 }
