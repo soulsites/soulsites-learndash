@@ -3,7 +3,7 @@
  * Plugin Name: SoulSites LearnDash for Elementor
  * Plugin URI: https://soulsites.de
  * Description: Erweitert Elementor mit LearnDash Dynamic Tags und Display Conditions für Login Status und Kurs-Kaufstatus.
- * Version: 1.2.3
+ * Version: 1.3.0
  * Author: Christian Wedel
  * Author URI: https://soulsites.de
  * Text Domain: soulsites-learndash
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'SOULSITES_LEARNDASH_VERSION', '1.2.3' );
+define( 'SOULSITES_LEARNDASH_VERSION', '1.3.0' );
 define( 'SOULSITES_LEARNDASH_FILE', __FILE__ );
 define( 'SOULSITES_LEARNDASH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
@@ -410,23 +410,43 @@ final class SoulSites_LearnDash_Elementor {
 	 * Initialize Query Filters
 	 */
 	public function init_query_filters() {
+		$has_purchase   = \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' );
+		$has_acf_filter = \SoulSites\Settings_Page::get_option( 'enable_query_acf_course_filter' );
+
 		// Course Purchase Query
-		if ( \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' ) ) {
+		if ( $has_purchase ) {
 			try {
 				$query_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-purchase-query.php';
 				if ( file_exists( $query_file ) ) {
 					require_once $query_file;
 				}
-
 				if ( class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
 					new SoulSites\Query\Course_Purchase_Query();
-
-					add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
-					add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
 				}
 			} catch ( \Exception $e ) {
 				// Bei Fehler nichts tun
 			}
+		}
+
+		// ACF Course Filter Query
+		if ( $has_acf_filter ) {
+			try {
+				$acf_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-acf-course-filter-query.php';
+				if ( file_exists( $acf_file ) ) {
+					require_once $acf_file;
+				}
+				if ( class_exists( 'SoulSites\Query\ACF_Course_Filter_Query' ) ) {
+					new SoulSites\Query\ACF_Course_Filter_Query();
+				}
+			} catch ( \Exception $e ) {
+				// Bei Fehler nichts tun
+			}
+		}
+
+		// Controls in Loop-Widgets registrieren (wenn mind. ein Filter aktiv ist)
+		if ( $has_purchase || $has_acf_filter ) {
+			add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
+			add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
 		}
 
 		// Tutor Courses Query
@@ -436,7 +456,6 @@ final class SoulSites_LearnDash_Elementor {
 				if ( file_exists( $tutor_query_file ) ) {
 					require_once $tutor_query_file;
 				}
-
 				if ( class_exists( 'SoulSites\Query\Tutor_Courses_Query' ) ) {
 					new SoulSites\Query\Tutor_Courses_Query();
 				}
@@ -450,12 +469,16 @@ final class SoulSites_LearnDash_Elementor {
 	 * Add Query Controls to Loop Widgets
 	 */
 	public function add_query_controls( $element, $args ) {
-		if ( ! class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
-			return;
-		}
-
 		try {
-			SoulSites\Query\Course_Purchase_Query::register_controls( $element );
+			if ( \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' )
+				&& class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+				SoulSites\Query\Course_Purchase_Query::register_controls( $element );
+			}
+
+			if ( \SoulSites\Settings_Page::get_option( 'enable_query_acf_course_filter' )
+				&& class_exists( 'SoulSites\Query\ACF_Course_Filter_Query' ) ) {
+				SoulSites\Query\ACF_Course_Filter_Query::register_controls( $element );
+			}
 		} catch ( \Exception $e ) {
 			return;
 		}
