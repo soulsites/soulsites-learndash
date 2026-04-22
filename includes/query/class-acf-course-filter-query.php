@@ -40,6 +40,11 @@ class ACF_Course_Filter_Query {
 	/**
 	 * Wendet den ACF-Feldfilter auf die WP_Query an.
 	 *
+	 * Ermittelt zuerst per get_posts() alle passenden Kurs-IDs und setzt dann
+	 * post__in – identisches Muster wie der Course_Purchase_Query Filter, da
+	 * direktes Setzen von meta_query am Elementor-Query-Objekt nicht zuverlässig
+	 * funktioniert.
+	 *
 	 * @param object $query Elementor Query-Objekt.
 	 */
 	public function apply_filter( $query ) {
@@ -67,7 +72,7 @@ class ACF_Course_Filter_Query {
 			}
 
 			$meta_entry = [
-				'key'     => sanitize_key( $field_name ),
+				'key'     => $field_name,
 				'compare' => $compare,
 			];
 
@@ -75,7 +80,22 @@ class ACF_Course_Filter_Query {
 				$meta_entry['value'] = $value;
 			}
 
-			$query->set( 'meta_query', [ $meta_entry ] );
+			$matching_ids = get_posts( [
+				'post_type'              => 'sfwd-courses',
+				'posts_per_page'         => -1,
+				'fields'                 => 'ids',
+				'post_status'            => 'publish',
+				'meta_query'             => [ $meta_entry ],
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+			] );
+
+			if ( empty( $matching_ids ) ) {
+				$query->set( 'post__in', [ 0 ] );
+			} else {
+				$query->set( 'post__in', $matching_ids );
+			}
 
 		} catch ( \Exception $e ) {
 			return;
