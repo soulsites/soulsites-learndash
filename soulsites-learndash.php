@@ -3,7 +3,7 @@
  * Plugin Name: SoulSites LearnDash for Elementor
  * Plugin URI: https://soulsites.de
  * Description: Erweitert Elementor mit LearnDash Dynamic Tags und Display Conditions für Login Status und Kurs-Kaufstatus.
- * Version: 1.2.3
+ * Version: 1.3.0
  * Author: Christian Wedel
  * Author URI: https://soulsites.de
  * Text Domain: soulsites-learndash
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'SOULSITES_LEARNDASH_VERSION', '1.2.3' );
+define( 'SOULSITES_LEARNDASH_VERSION', '1.3.0' );
 define( 'SOULSITES_LEARNDASH_FILE', __FILE__ );
 define( 'SOULSITES_LEARNDASH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
@@ -320,6 +320,9 @@ final class SoulSites_LearnDash_Elementor {
 				'enable_tag_tutor_foto'               => [ 'class-tutor-foto.php',               'SoulSites\Dynamic_Tags\Tutor_Foto' ],
 				'enable_tag_tutor_link'               => [ 'class-tutor-link.php',               'SoulSites\Dynamic_Tags\Tutor_Link' ],
 				'enable_tag_tutor_course_categories'  => [ 'class-tutor-course-categories.php',  'SoulSites\Dynamic_Tags\Tutor_Course_Categories' ],
+				// WooCommerce Kurs-Tags (ACF)
+				'enable_tag_woo_course_acf_text'      => [ 'class-woo-course-acf-text.php',      'SoulSites\Dynamic_Tags\Woo_Course_ACF_Text' ],
+				'enable_tag_woo_course_acf_image'     => [ 'class-woo-course-acf-image.php',     'SoulSites\Dynamic_Tags\Woo_Course_ACF_Image' ],
 			];
 
 			// Collect active tags

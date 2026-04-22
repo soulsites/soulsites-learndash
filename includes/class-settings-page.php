@@ -107,6 +107,9 @@ class Settings_Page {
 			'enable_tag_tutor_foto'               => 1,
 			'enable_tag_tutor_link'               => 1,
 			'enable_tag_tutor_course_categories'  => 1,
+			// Dynamic Tags – WooCommerce Kurs (ACF)
+			'enable_tag_woo_course_acf_text'      => 1,
+			'enable_tag_woo_course_acf_image'     => 1,
 			// Widgets
 			'enable_widget_progress_bar'          => 1,
 			'enable_widget_course_content'        => 1,
@@ -419,6 +422,24 @@ class Settings_Page {
 							'enable_tag_tutor_course_categories',
 							__( 'Kurs-Kategorien', 'soulsites-learndash' ),
 							__( 'Gibt die Kategorien des Kurses aus einem ACF-Taxonomie-Feld aus (kommagetrennt).', 'soulsites-learndash' )
+						);
+
+						echo '<h3>'
+							. esc_html__( 'WooCommerce Kurs-Tags', 'soulsites-learndash' )
+							. '<span class="soulsites-badge soulsites-badge-acf">ACF</span>'
+							. '</h3>';
+						echo '<p class="description soulsites-info-box">'
+							. esc_html__( 'Diese Tags lesen ACF-Felder vom LearnDash-Kurs, der mit dem aktuellen WooCommerce-Produkt verknüpft ist (meta: _related_course). Funktionieren auch direkt auf Kurs-, Lektions- und Themenseiten. Der ACF-Feldname wird direkt im Elementor-Tag konfiguriert.', 'soulsites-learndash' )
+							. '</p>';
+						$this->render_checkbox(
+							'enable_tag_woo_course_acf_text',
+							__( 'Kurs ACF-Textfeld (Produkt)', 'soulsites-learndash' ),
+							__( 'Gibt ein beliebiges ACF-Textfeld des verknüpften Kurses aus. Feldname frei wählbar. Unterstützt Plaintext und HTML (WYSIWYG). Für Kurzbeschreibung, Beschreibung, etc.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_woo_course_acf_image',
+							__( 'Kurs ACF-Bild (Produkt)', 'soulsites-learndash' ),
+							__( 'Gibt ein ACF-Bild-Feld des verknüpften Kurses zurück. Feldname frei wählbar. Kompatibel mit Elementor Bild-Widgets und Hintergrundbild-Attributen.', 'soulsites-learndash' )
 						);
 					}
 				);
