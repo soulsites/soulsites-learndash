@@ -114,6 +114,7 @@ class Settings_Page {
 			// Query Filter
 			'enable_query_course_purchase'        => 1,
 			'enable_query_tutor_courses'          => 1,
+			'enable_query_acf_course_filter'      => 1,
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
 		];
@@ -466,6 +467,12 @@ class Settings_Page {
 							'enable_query_tutor_courses',
 							__( 'Tutor-Kurse Query (Query ID: tutor_courses)', 'soulsites-learndash' ),
 							__( 'Aktiviert die Elementor Query ID "tutor_courses". Filtert sfwd-courses nach dem ACF-Feld am Kurs, das die aktuelle Tutor-Post-ID enthält. Feldname per Filter "soulsites_tutor_courses_field_name" anpassbar (Standard: "tutor").', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_query_acf_course_filter',
+							__( 'ACF Kursfelder Filter (Query ID: acf_course_filter)', 'soulsites-learndash' )
+								. '<span class="soulsites-badge soulsites-badge-acf">ACF</span>',
+							__( 'Fügt Loop-Widgets einen Filter hinzu, um Kurse nach einem beliebigen ACF-Feld zu filtern. Im Widget "Query ID" auf "acf_course_filter" setzen, dann Feld, Vergleichsoperator und Wert wählen.', 'soulsites-learndash' )
 						);
 					}
 				);
