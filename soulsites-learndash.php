@@ -323,6 +323,7 @@ final class SoulSites_LearnDash_Elementor {
 				// WooCommerce Kurs-Tags (ACF)
 				'enable_tag_woo_course_acf_text'      => [ 'class-woo-course-acf-text.php',      'SoulSites\Dynamic_Tags\Woo_Course_ACF_Text' ],
 				'enable_tag_woo_course_acf_image'     => [ 'class-woo-course-acf-image.php',     'SoulSites\Dynamic_Tags\Woo_Course_ACF_Image' ],
+				'enable_tag_woo_course_thumbnail'     => [ 'class-woo-course-thumbnail.php',     'SoulSites\Dynamic_Tags\Woo_Course_Thumbnail' ],
 			];
 
 			// Collect active tags

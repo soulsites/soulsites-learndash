@@ -110,6 +110,7 @@ class Settings_Page {
 			// Dynamic Tags – WooCommerce Kurs (ACF)
 			'enable_tag_woo_course_acf_text'      => 1,
 			'enable_tag_woo_course_acf_image'     => 1,
+			'enable_tag_woo_course_thumbnail'     => 1,
 			// Widgets
 			'enable_widget_progress_bar'          => 1,
 			'enable_widget_course_content'        => 1,
@@ -440,6 +441,11 @@ class Settings_Page {
 							'enable_tag_woo_course_acf_image',
 							__( 'Kurs ACF-Bild (Produkt)', 'soulsites-learndash' ),
 							__( 'Gibt ein ACF-Bild-Feld des verknüpften Kurses zurück. Feldname frei wählbar. Kompatibel mit Elementor Bild-Widgets und Hintergrundbild-Attributen.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_tag_woo_course_thumbnail',
+							__( 'Kurs Beitragsbild (Produkt)', 'soulsites-learndash' ),
+							__( 'Gibt das WordPress-Beitragsbild (Featured Image) des verknüpften Kurses zurück. Kein ACF erforderlich. Kompatibel mit Elementor Bild-Widgets und Hintergrundbild-Attributen.', 'soulsites-learndash' )
 						);
 					}
 				);
