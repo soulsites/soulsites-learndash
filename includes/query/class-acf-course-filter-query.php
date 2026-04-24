@@ -34,7 +34,7 @@ class ACF_Course_Filter_Query {
 	 * Constructor
 	 */
 	public function __construct() {
-		add_action( 'elementor/query/acf_course_filter', [ $this, 'apply_filter' ], 10, 1 );
+		add_action( 'elementor/query/acf_course_filter', [ $this, 'apply_filter' ], 10, 2 );
 	}
 
 	/**
@@ -47,17 +47,24 @@ class ACF_Course_Filter_Query {
 	 *
 	 * @param object $query Elementor Query-Objekt.
 	 */
-	public function apply_filter( $query ) {
+	public function apply_filter( $query, $widget = null ) {
 		if ( ! defined( 'LEARNDASH_VERSION' ) ) {
 			return;
 		}
 
-		if ( ! $query || ! is_object( $query ) || ! method_exists( $query, 'get_query_vars' ) ) {
+		if ( ! $query || ! is_object( $query ) ) {
 			return;
 		}
 
 		try {
-			$settings   = $query->get_query_vars();
+			if ( $widget && is_object( $widget ) && method_exists( $widget, 'get_settings_for_display' ) ) {
+				$settings = $widget->get_settings_for_display();
+			} elseif ( method_exists( $query, 'get_query_vars' ) ) {
+				$settings = $query->get_query_vars();
+			} else {
+				return;
+			}
+
 			$field_name = isset( $settings['acf_filter_field'] ) ? $settings['acf_filter_field'] : '';
 			$compare    = isset( $settings['acf_filter_compare'] ) ? $settings['acf_filter_compare'] : '=';
 			$value      = isset( $settings['acf_filter_value'] ) ? $settings['acf_filter_value'] : '';
