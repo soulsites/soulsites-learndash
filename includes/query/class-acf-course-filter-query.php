@@ -31,21 +31,60 @@ class ACF_Course_Filter_Query {
 	];
 
 	/**
+	 * Zwischengespeicherte Widget-Settings, die vor dem Query-Hook abgegriffen wurden.
+	 *
+	 * @var array|null
+	 */
+	private static $pending_settings = null;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
+		// before_render feuert bevor query_posts() und damit vor dem Query-Hook.
+		// So können wir die Widget-Settings sicher abgreifen, unabhängig davon
+		// welche Argumente Elementor an den Query-Hook übergibt.
+		add_action( 'elementor/element/before_render', [ $this, 'capture_settings' ], 1, 1 );
 		add_action( 'elementor/query/acf_course_filter', [ $this, 'apply_filter' ], 10, 2 );
+	}
+
+	/**
+	 * Greift die ACF-Filter-Settings des Loop-Widgets ab, bevor der Query-Hook feuert.
+	 *
+	 * @param \Elementor\Element_Base $element
+	 */
+	public function capture_settings( $element ) {
+		if ( ! $element || ! is_object( $element ) || ! method_exists( $element, 'get_name' ) ) {
+			return;
+		}
+
+		if ( ! in_array( $element->get_name(), [ 'loop-grid', 'loop-carousel' ], true ) ) {
+			return;
+		}
+
+		if ( ! method_exists( $element, 'get_settings_for_display' ) ) {
+			return;
+		}
+
+		try {
+			$settings = $element->get_settings_for_display();
+		} catch ( \Exception $e ) {
+			return;
+		}
+
+		$query_id = isset( $settings['query_id'] ) ? $settings['query_id'] : '';
+		if ( $query_id !== 'acf_course_filter' ) {
+			return;
+		}
+
+		self::$pending_settings = $settings;
 	}
 
 	/**
 	 * Wendet den ACF-Feldfilter auf die WP_Query an.
 	 *
-	 * Ermittelt zuerst per get_posts() alle passenden Kurs-IDs und setzt dann
-	 * post__in – identisches Muster wie der Course_Purchase_Query Filter, da
-	 * direktes Setzen von meta_query am Elementor-Query-Objekt nicht zuverlässig
-	 * funktioniert.
-	 *
-	 * @param object $query Elementor Query-Objekt.
+	 * @param object      $query  Elementor Query-Objekt.
+	 * @param object|null $widget Das Loop-Widget (wird von Elementor als 2. Arg übergeben).
 	 */
 	public function apply_filter( $query, $widget = null ) {
 		if ( ! defined( 'LEARNDASH_VERSION' ) ) {
@@ -57,7 +96,12 @@ class ACF_Course_Filter_Query {
 		}
 
 		try {
-			if ( $widget && is_object( $widget ) && method_exists( $widget, 'get_settings_for_display' ) ) {
+			// Reihenfolge: before_render-Settings (zuverlässigste Quelle)
+			// → Widget-Arg → Query-Vars als letzter Fallback
+			if ( self::$pending_settings !== null ) {
+				$settings             = self::$pending_settings;
+				self::$pending_settings = null;
+			} elseif ( $widget && is_object( $widget ) && method_exists( $widget, 'get_settings_for_display' ) ) {
 				$settings = $widget->get_settings_for_display();
 			} elseif ( method_exists( $query, 'get_query_vars' ) ) {
 				$settings = $query->get_query_vars();
