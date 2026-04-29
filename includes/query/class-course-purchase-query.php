@@ -119,54 +119,50 @@ class Course_Purchase_Query {
     }
 
     /**
-     * Fügt Custom Query Controls zu Elementor Loop Widgets hinzu
+     * Filtert den Loop-Query anhand des Widget-Settings "course_purchase_filter".
+     *
+     * Elementor Pro übergibt (WP_Query $query, Widget_Base $widget).
+     * Der Filterwert (purchased / not_purchased) liegt in den Widget-Settings,
+     * nicht in den WP_Query-Vars.
      */
-    public function filter_by_purchase_status( $query ) {
-        // Prüfe ob LearnDash aktiv ist
+    public function filter_by_purchase_status( $query, $widget = null ) {
         if ( ! defined( 'LEARNDASH_VERSION' ) ) {
             return;
         }
 
-        // Sicherheitsprüfung für Query-Objekt
-        if ( ! $query || ! is_object( $query ) || ! method_exists( $query, 'get_query_vars' ) ) {
+        if ( ! $query instanceof \WP_Query ) {
             return;
         }
 
-        try {
-            $settings = $query->get_query_vars();
+        // Filterwert aus Widget-Settings lesen
+        $filter_type = '';
+        if ( $widget && is_object( $widget ) && method_exists( $widget, 'get_settings' ) ) {
+            $filter_type = $widget->get_settings( 'course_purchase_filter' );
+        }
 
-            // Prüfe ob Filter aktiviert ist
-            if ( ! isset( $settings['course_purchase_filter'] ) || $settings['course_purchase_filter'] === '' ) {
-                return;
-            }
-
-            $filter_type = $settings['course_purchase_filter'];
-            $user_id = get_current_user_id();
-
-            // Wenn Benutzer nicht eingeloggt ist
-            if ( ! $user_id ) {
-                if ( $filter_type === 'purchased' ) {
-                    // Keine Kurse anzeigen, wenn nach gekauften gefiltert wird
-                    $query->set( 'post__in', [ 0 ] );
-                }
-                return;
-            }
-
-            $filtered_courses = $this->get_filtered_courses( $user_id, $filter_type );
-
-            if ( $filtered_courses === null ) {
-                return;
-            }
-
-            // Wenn keine Kurse gefunden wurden, leeres Ergebnis zurückgeben
-            if ( empty( $filtered_courses ) ) {
-                $query->set( 'post__in', [ 0 ] );
-            } else {
-                $query->set( 'post__in', $filtered_courses );
-            }
-        } catch ( \Exception $e ) {
-            // Bei Fehler nichts tun - Query läuft normal weiter
+        if ( empty( $filter_type ) ) {
             return;
+        }
+
+        $user_id = get_current_user_id();
+
+        if ( ! $user_id ) {
+            if ( $filter_type === 'purchased' ) {
+                $query->set( 'post__in', [ 0 ] );
+            }
+            return;
+        }
+
+        $filtered_courses = $this->get_filtered_courses( $user_id, $filter_type );
+
+        if ( $filtered_courses === null ) {
+            return;
+        }
+
+        if ( empty( $filtered_courses ) ) {
+            $query->set( 'post__in', [ 0 ] );
+        } else {
+            $query->set( 'post__in', $filtered_courses );
         }
     }
 
