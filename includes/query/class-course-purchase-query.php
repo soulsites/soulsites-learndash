@@ -143,13 +143,18 @@ class Course_Purchase_Query {
         }
 
         try {
-            if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
+            if ( \Elementor\Plugin::$instance &&
+                 \Elementor\Plugin::$instance->editor &&
+                 \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
                 return true;
             }
-            if ( \Elementor\Plugin::$instance->preview->is_preview_mode() ) {
+
+            if ( \Elementor\Plugin::$instance &&
+                 \Elementor\Plugin::$instance->preview &&
+                 \Elementor\Plugin::$instance->preview->is_preview_mode() ) {
                 return true;
             }
-        } catch ( \Exception $e ) {
+        } catch ( \Throwable $e ) {
             return false;
         }
 
