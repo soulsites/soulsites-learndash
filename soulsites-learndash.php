@@ -447,9 +447,8 @@ final class SoulSites_LearnDash_Elementor {
 			}
 		}
 
-		// Controls in Loop-Widgets registrieren (nur für den ACF-Filter nötig;
-		// der Kauf-Filter arbeitet über die Query-ID, braucht keine eigenen Controls)
-		if ( $has_acf_filter ) {
+		// Controls in Loop-Widgets registrieren (wenn mind. ein Filter aktiv ist)
+		if ( $has_purchase || $has_acf_filter ) {
 			add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
 			add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
 		}
@@ -475,6 +474,11 @@ final class SoulSites_LearnDash_Elementor {
 	 */
 	public function add_query_controls( $element, $args ) {
 		try {
+			if ( \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' )
+				&& class_exists( 'SoulSites\Query\Course_Purchase_Query' ) ) {
+				SoulSites\Query\Course_Purchase_Query::register_controls( $element );
+			}
+
 			if ( \SoulSites\Settings_Page::get_option( 'enable_query_acf_course_filter' )
 				&& class_exists( 'SoulSites\Query\ACF_Course_Filter_Query' ) ) {
 				SoulSites\Query\ACF_Course_Filter_Query::register_controls( $element );
