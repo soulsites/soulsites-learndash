@@ -8,137 +8,93 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Course Purchase Query Filter
  *
- * Filtert LearnDash Kurse in Elementor Loop Widgets basierend auf dem Kaufstatus
+ * Filtert LearnDash-Kurse im Elementor-Loop-Widget basierend auf dem
+ * Einschreibungsstatus des eingeloggten Nutzers.
+ *
+ * Verwendung:
+ *   1. Query-ID des Loop-Widgets auf "course_purchase_filter" setzen.
+ *   2. Im Query-Abschnitt das Dropdown "LearnDash Kurs-Filter" auswählen.
+ *
+ * Technischer Hinweis: Elementor übergibt dem Query-Hook kein reines WP_Query-
+ * Objekt und der Widget-Parameter ist nicht zuverlässig. Daher wird – wie beim
+ * ACF-Filter – ein before_render-Hook genutzt, um die Widget-Settings vor dem
+ * Query-Hook abzugreifen.
  */
 class Course_Purchase_Query {
 
-    /**
-     * Cache für Kurs-IDs
-     *
-     * @var array
-     */
+    /** @var array Kurs-ID-Cache pro Request */
     private static $course_cache = [];
 
-    /**
-     * Constructor
-     */
-    public function __construct() {
-        // Nur initialisieren wenn nicht im Elementor Editor
-        if ( $this->is_elementor_editor() ) {
-            return;
-        }
+    /** @var array|null Zwischengespeicherte Widget-Settings aus before_render */
+    private static $pending_settings = null;
 
-        // Hook für Elementor Query Filter (Elementor Pro Loop Grid/Carousel mit Query ID)
+    public function __construct() {
+        // before_render feuert bevor query_posts() und damit vor dem Query-Hook.
+        // So können wir die Widget-Settings sicher abgreifen, unabhängig davon
+        // welche Argumente Elementor an den Query-Hook übergibt.
+        add_action( 'elementor/element/before_render', [ $this, 'capture_settings' ], 1, 1 );
         add_action( 'elementor/query/course_purchase_filter', [ $this, 'filter_by_purchase_status' ], 10, 2 );
     }
 
     /**
-     * Prüft ob wir uns im Elementor Editor befinden
+     * Greift die Filter-Settings des Loop-Widgets ab, bevor der Query-Hook feuert.
      *
-     * @return bool
+     * @param \Elementor\Element_Base $element
      */
-    private function is_elementor_editor() {
-        // Prüfe ob Elementor geladen ist
-        if ( ! class_exists( '\Elementor\Plugin' ) ) {
-            return false;
+    public function capture_settings( $element ) {
+        if ( ! $element || ! is_object( $element ) || ! method_exists( $element, 'get_name' ) ) {
+            return;
         }
 
-        // Prüfe verschiedene Editor-Modi
-        if ( isset( $_GET['elementor-preview'] ) ) {
-            return true;
+        if ( ! in_array( $element->get_name(), [ 'loop-grid', 'loop-carousel' ], true ) ) {
+            return;
         }
 
-        if ( isset( $_GET['action'] ) && $_GET['action'] === 'elementor' ) {
-            return true;
+        if ( ! method_exists( $element, 'get_settings_for_display' ) ) {
+            return;
         }
 
-        // Prüfe ob Elementor Editor aktiv ist
         try {
-            if ( \Elementor\Plugin::$instance &&
-                 \Elementor\Plugin::$instance->editor &&
-                 \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
-                return true;
-            }
-
-            // Prüfe auch Preview-Modus
-            if ( \Elementor\Plugin::$instance &&
-                 \Elementor\Plugin::$instance->preview &&
-                 \Elementor\Plugin::$instance->preview->is_preview_mode() ) {
-                return true;
-            }
-        } catch ( \Exception $e ) {
-            // Bei Fehler sicher sein und false zurückgeben
-            return false;
+            $settings = $element->get_settings_for_display();
+        } catch ( \Throwable $e ) {
+            return;
         }
 
-        return false;
+        $query_id = isset( $settings['query_id'] ) ? $settings['query_id'] : '';
+        if ( $query_id !== 'course_purchase_filter' ) {
+            return;
+        }
+
+        self::$pending_settings = $settings;
     }
 
     /**
-     * Holt gecachte Kurs-IDs für einen Benutzer
+     * Wendet den Kauf-Filter auf die Query an.
      *
-     * @param int $user_id
-     * @param string $type 'all', 'enrolled'
-     * @return array
-     */
-    private function get_cached_courses( $user_id, $type ) {
-        $cache_key = $type . '_' . $user_id;
-
-        if ( isset( self::$course_cache[ $cache_key ] ) ) {
-            return self::$course_cache[ $cache_key ];
-        }
-
-        $courses = [];
-
-        try {
-            if ( $type === 'all' ) {
-                $courses = get_posts( [
-                    'post_type' => 'sfwd-courses',
-                    'posts_per_page' => 500, // Limit für Performance
-                    'fields' => 'ids',
-                    'post_status' => 'publish',
-                    'no_found_rows' => true, // Performance-Optimierung
-                    'update_post_meta_cache' => false,
-                    'update_post_term_cache' => false,
-                ] );
-            } elseif ( $type === 'enrolled' && function_exists( 'learndash_user_get_enrolled_courses' ) ) {
-                $courses = learndash_user_get_enrolled_courses( $user_id );
-
-                // Sicherstellen, dass es ein Array ist
-                if ( ! is_array( $courses ) ) {
-                    $courses = [];
-                }
-            }
-        } catch ( \Exception $e ) {
-            $courses = [];
-        }
-
-        self::$course_cache[ $cache_key ] = $courses;
-
-        return $courses;
-    }
-
-    /**
-     * Filtert den Loop-Query anhand des Widget-Settings "course_purchase_filter".
-     *
-     * Elementor Pro übergibt (WP_Query $query, Widget_Base $widget).
-     * Der Filterwert (purchased / not_purchased) liegt in den Widget-Settings,
-     * nicht in den WP_Query-Vars.
+     * @param object      $query  Query-Objekt (kein reines WP_Query – nur is_object() prüfen).
+     * @param object|null $widget Widget-Instanz (als Fallback für Settings).
      */
     public function filter_by_purchase_status( $query, $widget = null ) {
         if ( ! defined( 'LEARNDASH_VERSION' ) ) {
             return;
         }
 
-        if ( ! $query instanceof \WP_Query ) {
+        if ( ! $query || ! is_object( $query ) ) {
             return;
         }
 
-        // Filterwert aus Widget-Settings lesen
-        $filter_type = '';
-        if ( $widget && is_object( $widget ) && method_exists( $widget, 'get_settings' ) ) {
-            $filter_type = $widget->get_settings( 'course_purchase_filter' );
+        // Reihenfolge: before_render-Settings (zuverlässigste Quelle)
+        // → Widget-Arg als Fallback
+        if ( self::$pending_settings !== null ) {
+            $settings               = self::$pending_settings;
+            self::$pending_settings = null;
+        } elseif ( $widget && is_object( $widget ) && method_exists( $widget, 'get_settings_for_display' ) ) {
+            $settings = $widget->get_settings_for_display();
+        } else {
+            return;
         }
+
+        $filter_type = isset( $settings['course_purchase_filter'] ) ? $settings['course_purchase_filter'] : '';
 
         if ( empty( $filter_type ) ) {
             return;
@@ -153,38 +109,30 @@ class Course_Purchase_Query {
             return;
         }
 
-        $filtered_courses = $this->get_filtered_courses( $user_id, $filter_type );
+        $filtered = $this->get_filtered_courses( $user_id, $filter_type );
 
-        if ( $filtered_courses === null ) {
+        if ( $filtered === null ) {
             return;
         }
 
-        if ( empty( $filtered_courses ) ) {
-            $query->set( 'post__in', [ 0 ] );
-        } else {
-            $query->set( 'post__in', $filtered_courses );
-        }
+        $query->set( 'post__in', empty( $filtered ) ? [ 0 ] : $filtered );
     }
 
     /**
-     * Holt gefilterte Kurse basierend auf Filter-Typ
-     *
-     * @param int $user_id
-     * @param string $filter_type
+     * @param int    $user_id
+     * @param string $filter_type 'purchased' | 'not_purchased'
      * @return array|null
      */
     private function get_filtered_courses( $user_id, $filter_type ) {
-        $enrolled_courses = $this->get_cached_courses( $user_id, 'enrolled' );
+        $enrolled = $this->get_enrolled_courses( $user_id );
 
         switch ( $filter_type ) {
             case 'purchased':
-                // Nur gekaufte/eingeschriebene Kurse
-                return $enrolled_courses;
+                return $enrolled;
 
             case 'not_purchased':
-                // Nur nicht gekaufte Kurse
-                $all_courses = $this->get_cached_courses( $user_id, 'all' );
-                return array_values( array_diff( $all_courses, $enrolled_courses ) );
+                $all = $this->get_all_courses();
+                return array_values( array_diff( $all, $enrolled ) );
 
             default:
                 return null;
@@ -192,15 +140,80 @@ class Course_Purchase_Query {
     }
 
     /**
-     * Registriert Query Controls für Elementor Widgets
+     * Alle eingeschriebenen Kurse des Nutzers.
+     * Nutzt die LearnDash-4.x-Product-API falls verfügbar, sonst
+     * learndash_user_get_enrolled_courses() als Bulk-Abfrage.
+     *
+     * @param int $user_id
+     * @return array
+     */
+    private function get_enrolled_courses( $user_id ) {
+        $cache_key = 'enrolled_' . $user_id;
+        if ( isset( self::$course_cache[ $cache_key ] ) ) {
+            return self::$course_cache[ $cache_key ];
+        }
+
+        $enrolled = [];
+
+        try {
+            // Primär: LearnDash-Bulk-Funktion (effizient, eine DB-Abfrage)
+            if ( function_exists( 'learndash_user_get_enrolled_courses' ) ) {
+                $result = learndash_user_get_enrolled_courses( $user_id, [] );
+                if ( is_array( $result ) ) {
+                    $enrolled = array_map( 'intval', $result );
+                }
+            }
+        } catch ( \Throwable $e ) {
+            $enrolled = [];
+        }
+
+        self::$course_cache[ $cache_key ] = $enrolled;
+        return $enrolled;
+    }
+
+    /**
+     * Alle veröffentlichten Kurse (für not_purchased-Filter).
+     *
+     * @return array
+     */
+    private function get_all_courses() {
+        $cache_key = 'all_courses';
+        if ( isset( self::$course_cache[ $cache_key ] ) ) {
+            return self::$course_cache[ $cache_key ];
+        }
+
+        $courses = [];
+        try {
+            $result = get_posts( [
+                'post_type'              => 'sfwd-courses',
+                'posts_per_page'         => 500,
+                'fields'                 => 'ids',
+                'post_status'            => 'publish',
+                'no_found_rows'          => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
+            ] );
+            if ( is_array( $result ) ) {
+                $courses = array_map( 'intval', $result );
+            }
+        } catch ( \Throwable $e ) {
+            $courses = [];
+        }
+
+        self::$course_cache[ $cache_key ] = $courses;
+        return $courses;
+    }
+
+    /**
+     * Registriert das Filter-Dropdown im Elementor Query-Abschnitt.
+     *
+     * @param \Elementor\Widget_Base $widget
      */
     public static function register_controls( $widget ) {
-        // Sicherheitsprüfung
         if ( ! $widget || ! is_object( $widget ) ) {
             return;
         }
 
-        // Prüfe ob Elementor Controls Manager verfügbar ist
         if ( ! class_exists( '\Elementor\Controls_Manager' ) ) {
             return;
         }
@@ -209,20 +222,19 @@ class Course_Purchase_Query {
             $widget->add_control(
                 'course_purchase_filter',
                 [
-                    'label' => esc_html__( 'LearnDash Kurs-Filter', 'soulsites-learndash' ),
-                    'type' => \Elementor\Controls_Manager::SELECT,
-                    'default' => '',
-                    'options' => [
-                        '' => esc_html__( 'Keine Filterung', 'soulsites-learndash' ),
-                        'purchased' => esc_html__( 'Nur gekaufte Kurse', 'soulsites-learndash' ),
-                        'not_purchased' => esc_html__( 'Nur nicht gekaufte Kurse', 'soulsites-learndash' ),
+                    'label'       => esc_html__( 'LearnDash Kurs-Filter', 'soulsites-learndash' ),
+                    'type'        => \Elementor\Controls_Manager::SELECT,
+                    'default'     => '',
+                    'options'     => [
+                        ''             => esc_html__( 'Keine Filterung', 'soulsites-learndash' ),
+                        'purchased'    => esc_html__( 'Nur eingeschriebene Kurse', 'soulsites-learndash' ),
+                        'not_purchased' => esc_html__( 'Nur nicht eingeschriebene Kurse', 'soulsites-learndash' ),
                     ],
-                    'description' => esc_html__( 'Filtert die angezeigten LearnDash Kurse basierend auf dem Kaufstatus des aktuellen Benutzers.', 'soulsites-learndash' ),
-                    'separator' => 'before',
+                    'description' => esc_html__( 'Setzt Query-ID auf "course_purchase_filter". Zeigt nur Kurse des eingeloggten Nutzers basierend auf dem Einschreibungsstatus.', 'soulsites-learndash' ),
+                    'separator'   => 'before',
                 ]
             );
-        } catch ( \Exception $e ) {
-            // Bei Fehler nichts tun
+        } catch ( \Throwable $e ) {
             return;
         }
     }
