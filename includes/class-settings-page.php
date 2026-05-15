@@ -121,6 +121,8 @@ class Settings_Page {
 			'enable_query_acf_course_filter'      => 1,
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
+			// ACF Auto-Tag
+			'auto_tag_enabled'                    => 0,
 		];
 	}
 
@@ -163,6 +165,11 @@ class Settings_Page {
 		// E-Mail-Adresse (Textfeld)
 		$sanitized['pending_course_email_address'] = isset( $input['pending_course_email_address'] )
 			? sanitize_email( $input['pending_course_email_address'] )
+			: '';
+
+		// ACF Auto-Tag: Feldkonfiguration (Textarea, eine Zeile pro Feld)
+		$sanitized['auto_tag_fields'] = isset( $input['auto_tag_fields'] )
+			? sanitize_textarea_field( $input['auto_tag_fields'] )
 			: '';
 
 		return $sanitized;
@@ -235,6 +242,37 @@ class Settings_Page {
 			/>
 			<?php if ( $description ) : ?>
 				<p class="description"><?php echo esc_html( $description ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render a textarea input row.
+	 *
+	 * @param string $key         Option key.
+	 * @param string $label       Visible label.
+	 * @param string $description Optional description below the textarea.
+	 * @param string $placeholder Placeholder text.
+	 */
+	private function render_textarea( $key, $label, $description = '', $placeholder = '' ) {
+		$value = self::get_option( $key, '' );
+		$name  = esc_attr( self::OPTION_NAME . '[' . $key . ']' );
+		?>
+		<div class="soulsites-text-input-row">
+			<label for="<?php echo esc_attr( $key ); ?>">
+				<span class="soulsites-toggle-label"><?php echo esc_html( $label ); ?></span>
+			</label>
+			<textarea
+				id="<?php echo esc_attr( $key ); ?>"
+				name="<?php echo $name; ?>"
+				rows="6"
+				class="large-text code"
+				placeholder="<?php echo esc_attr( $placeholder ); ?>"
+				style="font-family:monospace;margin-top:6px;"
+			><?php echo esc_textarea( $value ); ?></textarea>
+			<?php if ( $description ) : ?>
+				<p class="description"><?php echo wp_kses_post( $description ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -505,7 +543,44 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 7. E-Mail Benachrichtigungen
+				// 7. ACF Auto-Tag
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'tag',
+					__( 'ACF Auto-Tag für Kurse', 'soulsites-learndash' ),
+					__( 'Weist einem Kurs automatisch Tags aus ACF-Feldern zu – live nach Feldänderung und beim Speichern. Manuell gesetzte Tags bleiben erhalten.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'auto_tag_enabled',
+							__( 'Auto-Tagging aktivieren', 'soulsites-learndash' ),
+							__( 'Aktiviert die Live-Aktualisierung per AJAX (direkt nach Feldänderung) sowie den Save-Hook (acf/save_post).', 'soulsites-learndash' )
+						);
+
+						$placeholder = implode( "\n", [
+							'# Feldname : Taxonomie-Slug (Taxonomie ist optional, Standard: ld_course_tag)',
+							'schwierigkeitsgrad',
+							'zielgruppe : ld_course_tag',
+							'format : post_tag',
+						] );
+
+						$this->render_textarea(
+							'auto_tag_fields',
+							__( 'Feldkonfiguration', 'soulsites-learndash' ),
+							sprintf(
+								wp_kses(
+									/* translators: HTML allowed */
+									__( 'Eine Zeile pro Feld: <code>acf_feldname</code> oder <code>acf_feldname:taxonomie_slug</code>.<br>Ohne Taxonomie-Angabe wird <code>ld_course_tag</code> verwendet.<br>Zeilen mit <code>#</code> werden ignoriert.<br><strong>Unterstützte Feldtypen:</strong> Text, Textarea, Select (Einfach- &amp; Mehrfachauswahl), Checkbox, Radio.<br>Bei Select/Checkbox werden die <em>Werte</em> der Auswahloptionen als Tag-Namen verwendet – nicht die Beschriftungen.', 'soulsites-learndash' ),
+									[ 'code' => [], 'br' => [], 'strong' => [], 'em' => [] ]
+								),
+								''
+							),
+							$placeholder
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 8. E-Mail Benachrichtigungen
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'email-alt',

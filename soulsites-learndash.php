@@ -28,6 +28,15 @@ define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
 require_once SOULSITES_LEARNDASH_PATH . 'includes/class-settings-page.php';
 SoulSites\Settings_Page::get_instance();
 
+// ACF Auto-Tag – läuft unabhängig von Elementor, benötigt nur ACF + LearnDash
+require_once SOULSITES_LEARNDASH_PATH . 'includes/class-auto-tag-course.php';
+add_action( 'plugins_loaded', function () {
+	if ( function_exists( 'get_field' ) && defined( 'LEARNDASH_VERSION' )
+		&& \SoulSites\Settings_Page::get_option( 'auto_tag_enabled' ) ) {
+		\SoulSites\Auto_Tag_Course::get_instance();
+	}
+}, 15 );
+
 /**
  * Main Plugin Class
  */
