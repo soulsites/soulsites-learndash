@@ -149,35 +149,30 @@ class Auto_Tag_Course {
 		if ( ! Settings_Page::get_option( 'auto_tag_enabled' ) ) {
 			return;
 		}
+
 		$post_id = absint( $post_id );
 		if ( get_post_type( $post_id ) !== 'sfwd-courses' ) {
 			return;
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification
-		if ( empty( $_POST['acf'] ) || ! is_array( $_POST['acf'] ) ) {
+		// Scan field groups registered for this post to find auto-tag-enabled fields.
+		// Using get_field_config() is more reliable than iterating $_POST['acf'] and
+		// calling acf_get_field(), which does not always expose custom field settings.
+		$field_config = self::get_field_config( $post_id );
+		if ( empty( $field_config ) ) {
 			return;
 		}
 
 		$by_taxonomy = [];
-
-		// phpcs:ignore WordPress.Security.NonceVerification
-		foreach ( array_keys( $_POST['acf'] ) as $field_key ) {
-			$field = acf_get_field( $field_key );
-			if ( ! $field || empty( $field['auto_tag_course'] ) ) {
-				continue;
-			}
-
-			$taxonomy   = ( ! empty( $field['auto_tag_course_taxonomy'] ) )
-				? sanitize_key( $field['auto_tag_course_taxonomy'] )
-				: 'ld_course_tag';
-			$value      = get_field( $field['name'], $post_id );
+		foreach ( $field_config as $cfg ) {
+			$value      = get_field( $cfg['field'], $post_id );
 			$term_names = $this->normalize_value( $value );
+			$tax        = $cfg['taxonomy'];
 
-			if ( ! isset( $by_taxonomy[ $taxonomy ] ) ) {
-				$by_taxonomy[ $taxonomy ] = [];
+			if ( ! isset( $by_taxonomy[ $tax ] ) ) {
+				$by_taxonomy[ $tax ] = [];
 			}
-			$by_taxonomy[ $taxonomy ] = array_merge( $by_taxonomy[ $taxonomy ], $term_names );
+			$by_taxonomy[ $tax ] = array_merge( $by_taxonomy[ $tax ], $term_names );
 		}
 
 		foreach ( $by_taxonomy as $taxonomy => $term_names ) {
