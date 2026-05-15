@@ -121,6 +121,8 @@ class Settings_Page {
 			'enable_query_acf_course_filter'      => 1,
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
+			// ACF Auto-Tag
+			'auto_tag_enabled'                    => 0,
 		];
 	}
 
@@ -235,6 +237,37 @@ class Settings_Page {
 			/>
 			<?php if ( $description ) : ?>
 				<p class="description"><?php echo esc_html( $description ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render a textarea input row.
+	 *
+	 * @param string $key         Option key.
+	 * @param string $label       Visible label.
+	 * @param string $description Optional description below the textarea.
+	 * @param string $placeholder Placeholder text.
+	 */
+	private function render_textarea( $key, $label, $description = '', $placeholder = '' ) {
+		$value = self::get_option( $key, '' );
+		$name  = esc_attr( self::OPTION_NAME . '[' . $key . ']' );
+		?>
+		<div class="soulsites-text-input-row">
+			<label for="<?php echo esc_attr( $key ); ?>">
+				<span class="soulsites-toggle-label"><?php echo esc_html( $label ); ?></span>
+			</label>
+			<textarea
+				id="<?php echo esc_attr( $key ); ?>"
+				name="<?php echo $name; ?>"
+				rows="6"
+				class="large-text code"
+				placeholder="<?php echo esc_attr( $placeholder ); ?>"
+				style="font-family:monospace;margin-top:6px;"
+			><?php echo esc_textarea( $value ); ?></textarea>
+			<?php if ( $description ) : ?>
+				<p class="description"><?php echo wp_kses_post( $description ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -505,7 +538,29 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 7. E-Mail Benachrichtigungen
+				// 7. ACF Auto-Tag
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'tag',
+					__( 'ACF Auto-Tag für Kurse', 'soulsites-learndash' ),
+					__( 'Weist einem Kurs automatisch Tags aus ACF-Feldern zu – live nach Feldänderung und beim Speichern. Manuell gesetzte Tags bleiben erhalten.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'auto_tag_enabled',
+							__( 'Auto-Tagging aktivieren', 'soulsites-learndash' ),
+							__( 'Globaler Schalter. Die eigentliche Konfiguration erfolgt direkt im jeweiligen ACF-Feld unter "Feldgruppen bearbeiten" → Feld auswählen → Option "Auto-Tag für Kurse" aktivieren.', 'soulsites-learndash' )
+						);
+						echo '<p class="description soulsites-info-box">'
+							. wp_kses(
+								__( '<strong>So geht\'s:</strong> Öffne eine ACF-Feldgruppe, wähle ein Feld aus (z.&nbsp;B. Checkbox, Select oder Text) und aktiviere dort die Option <em>„Auto-Tag für Kurse"</em>. Optional kann eine abweichende Taxonomie eingetragen werden (Standard: <code>ld_course_tag</code>). Unterstützte Feldtypen: Text, Textarea, Select (Einzel- &amp; Mehrfachauswahl), Checkbox, Radio.', 'soulsites-learndash' ),
+								[ 'strong' => [], 'em' => [], 'code' => [], 'br' => [] ]
+							)
+							. '</p>';
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 8. E-Mail Benachrichtigungen
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'email-alt',
