@@ -119,7 +119,6 @@ class Settings_Page {
 			'enable_query_course_purchase'        => 1,
 			'enable_query_tutor_courses'          => 1,
 			'enable_query_acf_course_filter'      => 1,
-			'enable_query_course_tag_filter'      => 1,
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
 			// ACF Auto-Tag
@@ -534,11 +533,6 @@ class Settings_Page {
 							__( 'ACF Kursfelder Filter (Query ID: acf_course_filter)', 'soulsites-learndash' )
 								. '<span class="soulsites-badge soulsites-badge-acf">ACF</span>',
 							__( 'Fügt Loop-Widgets einen Filter hinzu, um Kurse nach einem beliebigen ACF-Feld zu filtern. Im Widget "Query ID" auf "acf_course_filter" setzen, dann Feld, Vergleichsoperator und Wert wählen.', 'soulsites-learndash' )
-						);
-						$this->render_checkbox(
-							'enable_query_course_tag_filter',
-							__( 'Kurs-Tag Filter (Query ID: course_tag_filter)', 'soulsites-learndash' ),
-							__( 'Fügt Loop-Widgets einen Taxonomie-Filter hinzu, um Kurse nach Tags (ld_course_tag) oder anderen Kurs-Taxonomien zu filtern. Im Widget "Query ID" auf "course_tag_filter" setzen, dann Taxonomie, Term-Slugs/IDs und Operator wählen.', 'soulsites-learndash' )
 						);
 					}
 				);

@@ -72,6 +72,8 @@ final class SoulSites_LearnDash_Elementor {
 		add_action( 'init', [ $this, 'apply_editor_settings' ] );
 		// Kurs-Pending-Benachrichtigung – läuft unabhängig von Elementor
 		add_action( 'transition_post_status', [ $this, 'maybe_send_pending_course_email' ], 10, 3 );
+		// LearnDash Kurs-Taxonomien im Elementor Taxonomy Filter Widget sichtbar machen
+		add_action( 'registered_taxonomy', [ $this, 'expose_learndash_taxonomies_to_elementor' ], 10, 1 );
 	}
 
 	/**
@@ -89,6 +91,26 @@ final class SoulSites_LearnDash_Elementor {
 			if ( \SoulSites\Settings_Page::get_option( $setting ) ) {
 				remove_post_type_support( $post_type, 'editor' );
 			}
+		}
+	}
+
+	/**
+	 * Setzt show_in_nav_menus für LearnDash Kurs-Taxonomien auf true,
+	 * damit sie im Elementor Taxonomy Filter Widget im Dropdown erscheinen.
+	 * Elementor liest die Taxonomieliste via get_taxonomies(['show_in_nav_menus' => true]).
+	 *
+	 * @param string $taxonomy Slug der soeben registrierten Taxonomie.
+	 */
+	public function expose_learndash_taxonomies_to_elementor( $taxonomy ) {
+		$learndash_taxonomies = [ 'ld_course_tag', 'ld_course_category' ];
+
+		if ( ! in_array( $taxonomy, $learndash_taxonomies, true ) ) {
+			return;
+		}
+
+		global $wp_taxonomies;
+		if ( isset( $wp_taxonomies[ $taxonomy ] ) ) {
+			$wp_taxonomies[ $taxonomy ]->show_in_nav_menus = true;
 		}
 	}
 
@@ -427,7 +449,6 @@ final class SoulSites_LearnDash_Elementor {
 	public function init_query_filters() {
 		$has_purchase   = \SoulSites\Settings_Page::get_option( 'enable_query_course_purchase' );
 		$has_acf_filter = \SoulSites\Settings_Page::get_option( 'enable_query_acf_course_filter' );
-		$has_tag_filter = \SoulSites\Settings_Page::get_option( 'enable_query_course_tag_filter' );
 
 		// Course Purchase Query
 		if ( $has_purchase ) {
@@ -459,23 +480,8 @@ final class SoulSites_LearnDash_Elementor {
 			}
 		}
 
-		// Course Tag Filter Query
-		if ( $has_tag_filter ) {
-			try {
-				$tag_filter_file = SOULSITES_LEARNDASH_PATH . 'includes/query/class-course-tag-filter-query.php';
-				if ( file_exists( $tag_filter_file ) ) {
-					require_once $tag_filter_file;
-				}
-				if ( class_exists( 'SoulSites\Query\Course_Tag_Filter_Query' ) ) {
-					new SoulSites\Query\Course_Tag_Filter_Query();
-				}
-			} catch ( \Exception $e ) {
-				// Bei Fehler nichts tun
-			}
-		}
-
 		// Controls in Loop-Widgets registrieren (wenn mind. ein Filter aktiv ist)
-		if ( $has_purchase || $has_acf_filter || $has_tag_filter ) {
+		if ( $has_purchase || $has_acf_filter ) {
 			add_action( 'elementor/element/loop-grid/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
 			add_action( 'elementor/element/loop-carousel/section_query/before_section_end', [ $this, 'add_query_controls' ], 10, 2 );
 		}
@@ -509,11 +515,6 @@ final class SoulSites_LearnDash_Elementor {
 			if ( \SoulSites\Settings_Page::get_option( 'enable_query_acf_course_filter' )
 				&& class_exists( 'SoulSites\Query\ACF_Course_Filter_Query' ) ) {
 				SoulSites\Query\ACF_Course_Filter_Query::register_controls( $element );
-			}
-
-			if ( \SoulSites\Settings_Page::get_option( 'enable_query_course_tag_filter' )
-				&& class_exists( 'SoulSites\Query\Course_Tag_Filter_Query' ) ) {
-				SoulSites\Query\Course_Tag_Filter_Query::register_controls( $element );
 			}
 		} catch ( \Exception $e ) {
 			return;
