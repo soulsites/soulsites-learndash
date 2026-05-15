@@ -122,7 +122,7 @@ class Settings_Page {
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
 			// ACF Auto-Tag
-			'auto_tag_enabled'                    => 0,
+			'auto_tag_enabled'                    => 1,
 		];
 	}
 
