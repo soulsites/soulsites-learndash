@@ -28,11 +28,13 @@ define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
 require_once SOULSITES_LEARNDASH_PATH . 'includes/class-settings-page.php';
 SoulSites\Settings_Page::get_instance();
 
-// ACF Auto-Tag – läuft unabhängig von Elementor, benötigt nur ACF + LearnDash
+// ACF Auto-Tag – läuft unabhängig von Elementor, benötigt nur ACF + LearnDash.
+// Wird immer initialisiert wenn ACF und LearnDash aktiv sind, damit acf/render_field_settings
+// die Checkbox in den Feld-Einstellungen anzeigt. Der globale Toggle steuert nur die
+// Live-/Save-Hooks (wird in get_field_config() und enqueue_admin_scripts() geprüft).
 require_once SOULSITES_LEARNDASH_PATH . 'includes/class-auto-tag-course.php';
 add_action( 'plugins_loaded', function () {
-	if ( function_exists( 'get_field' ) && defined( 'LEARNDASH_VERSION' )
-		&& \SoulSites\Settings_Page::get_option( 'auto_tag_enabled' ) ) {
+	if ( function_exists( 'get_field' ) && defined( 'LEARNDASH_VERSION' ) ) {
 		\SoulSites\Auto_Tag_Course::get_instance();
 	}
 }, 15 );

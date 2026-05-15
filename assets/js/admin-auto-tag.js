@@ -6,13 +6,16 @@
 		return;
 	}
 
-	var config   = SoulsitesAutoTag.fieldConfig; // [{ field, taxonomy }, ...]
-	var timers   = {};
+	// fieldConfig: [{ field: 'name', key: 'field_xxx', taxonomy: 'ld_course_tag' }, ...]
+	var config  = SoulsitesAutoTag.fieldConfig;
+	var timers  = {};
 
-	/** Map of fieldName → { field, taxonomy } for quick lookup. */
-	var fieldMap = {};
+	// Quick lookup by field name and by field key.
+	var byName = {};
+	var byKey  = {};
 	config.forEach(function (c) {
-		fieldMap[c.field] = c;
+		byName[c.field] = c;
+		byKey[c.key]    = c;
 	});
 
 	// -------------------------------------------------------------------------
@@ -20,10 +23,10 @@
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Extract an array of selected/entered values from an ACF field wrapper.
-	 * Works with: select (single + multi), checkbox, radio, text, textarea.
+	 * Extract selected/entered values from an ACF field wrapper element.
+	 * Supports: select (single + multiple), checkbox, radio, text, textarea.
 	 *
-	 * @param {jQuery} $wrapper  Element with [data-name="fieldname"].
+	 * @param  {jQuery} $wrapper  [data-name] or [data-key] wrapper div.
 	 * @returns {string[]}
 	 */
 	function extractValues($wrapper) {
@@ -33,43 +36,34 @@
 		$wrapper.find('select').each(function () {
 			var selected = $(this).val();
 			if (!selected) return;
-			if (Array.isArray(selected)) {
-				values = values.concat(selected);
-			} else {
-				values.push(selected);
-			}
+			[].concat(selected).forEach(function (v) {
+				if (v) values.push(v);
+			});
 		});
 
-		// Checkbox / radio inputs
+		// Checkbox / radio
 		$wrapper.find('input[type="checkbox"]:checked, input[type="radio"]:checked').each(function () {
 			var v = $(this).val();
 			if (v && v !== 'false') values.push(v);
 		});
 
-		// Text / email / url inputs (skip hidden, submit, etc.)
+		// Text / url / email inputs
 		$wrapper.find('input[type="text"], input[type="email"], input[type="url"]').each(function () {
-			var v = $.trim($(this).val());
-			if (v) {
-				// Support comma-separated entries
-				v.split(',').forEach(function (part) {
-					part = $.trim(part);
-					if (part) values.push(part);
-				});
-			}
+			$(this).val().split(',').forEach(function (part) {
+				part = $.trim(part);
+				if (part) values.push(part);
+			});
 		});
 
 		// Textarea
 		$wrapper.find('textarea').each(function () {
-			var v = $.trim($(this).val());
-			if (v) {
-				v.split(',').forEach(function (part) {
-					part = $.trim(part);
-					if (part) values.push(part);
-				});
-			}
+			$(this).val().split(',').forEach(function (part) {
+				part = $.trim(part);
+				if (part) values.push(part);
+			});
 		});
 
-		// Deduplicate and remove empty strings.
+		// Deduplicate.
 		return values.filter(function (v, i, arr) {
 			return v !== '' && arr.indexOf(v) === i;
 		});
@@ -82,30 +76,29 @@
 	/**
 	 * Debounced AJAX call to create/update tags for a single field.
 	 *
-	 * @param {string}   fieldName
-	 * @param {string}   taxonomy
-	 * @param {string[]} values
+	 * @param {Object}   cfg     Entry from fieldConfig ({ field, key, taxonomy }).
+	 * @param {string[]} values  Extracted values to sync as tags.
 	 */
-	function syncField(fieldName, taxonomy, values) {
-		clearTimeout(timers[fieldName]);
+	function syncField(cfg, values) {
+		clearTimeout(timers[cfg.key]);
 
-		timers[fieldName] = setTimeout(function () {
-			delete timers[fieldName];
+		timers[cfg.key] = setTimeout(function () {
+			delete timers[cfg.key];
 
 			$.ajax({
 				url:  SoulsitesAutoTag.ajaxUrl,
 				type: 'POST',
 				data: {
-					action:   'soulsites_auto_tag_course',
-					nonce:    SoulsitesAutoTag.nonce,
-					post_id:  SoulsitesAutoTag.postId,
-					field:    fieldName,
-					taxonomy: taxonomy,
-					value:    values,
+					action:    'soulsites_auto_tag_course',
+					nonce:     SoulsitesAutoTag.nonce,
+					post_id:   SoulsitesAutoTag.postId,
+					field_key: cfg.key,
+					taxonomy:  cfg.taxonomy,
+					value:     values,
 				},
 				success: function (response) {
 					if (response.success && response.data.terms.length) {
-						showFeedback(fieldName, response.data.terms);
+						showFeedback(cfg.field, response.data.terms);
 					}
 				},
 			});
@@ -117,27 +110,26 @@
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Briefly shows the auto-assigned tag names below the field.
+	 * Briefly shows the auto-assigned tag names below the field wrapper.
 	 *
-	 * @param {string}   fieldName
-	 * @param {string[]} terms
+	 * @param {string}   fieldName  ACF field name (used to find the wrapper).
+	 * @param {string[]} terms      Term names that were assigned.
 	 */
 	function showFeedback(fieldName, terms) {
-		var $wrapper  = $('[data-name="' + fieldName + '"]').first();
+		var $wrapper = $('[data-name="' + fieldName + '"]').first();
 		if (!$wrapper.length) return;
 
 		var $feedback = $wrapper.find('.soulsites-tag-feedback');
 		if (!$feedback.length) {
 			$feedback = $(
-				'<div class="soulsites-tag-feedback" ' +
-				'style="margin-top:4px;font-size:11px;color:#46b450;line-height:1.4;"></div>'
+				'<div class="soulsites-tag-feedback"' +
+				' style="margin-top:4px;font-size:11px;color:#46b450;line-height:1.4;"></div>'
 			);
 			$wrapper.append($feedback);
 		}
 
 		var label = (SoulsitesAutoTag.i18n && SoulsitesAutoTag.i18n.tagged)
-			? SoulsitesAutoTag.i18n.tagged
-			: 'Tags:';
+			? SoulsitesAutoTag.i18n.tagged : 'Tags:';
 
 		$feedback
 			.text(label + ' ' + terms.map(function (t) { return '#' + t; }).join('  '))
@@ -152,46 +144,29 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// ACF hooks
+	// ACF integration
 	// -------------------------------------------------------------------------
 
-	/**
-	 * Attach change listeners once ACF has rendered fields on the page.
-	 * Uses event delegation so dynamic fields (repeater rows added later)
-	 * are also covered.
-	 */
 	acf.addAction('ready', function () {
-		// Delegate to .acf-fields container so it survives repeater re-renders.
-		$('.acf-fields, #poststuff').on(
-			'change',
-			'[data-name]',
-			function () {
-				var fieldName = $(this).data('name');
-				if (!fieldName || !fieldMap[fieldName]) return;
-
-				var cfg    = fieldMap[fieldName];
-				var values = extractValues($(this));
-				if (values.length) {
-					syncField(cfg.field, cfg.taxonomy, values);
-				}
-			}
-		);
-
-		// Also listen via ACF's own change action for completeness
-		// (fires for ACF-managed field types like relationship, taxonomy, etc.).
-		acf.addAction('change', function (field) {
-			var name = field.get('name');
-			if (!name || !fieldMap[name]) return;
-
-			var cfg = fieldMap[name];
-			// Use the field's $el wrapper to extract values uniformly.
-			var $el = field.$el;
-			if (!$el || !$el.length) return;
+		// Event delegation on .acf-fields so repeater rows added later are covered.
+		$('.acf-fields, #poststuff').on('change', '[data-name], [data-key]', function () {
+			var $el      = $(this);
+			var cfg      = byName[$el.data('name')] || byKey[$el.data('key')];
+			if (!cfg) return;
 
 			var values = extractValues($el);
-			if (values.length) {
-				syncField(cfg.field, cfg.taxonomy, values);
-			}
+			if (values.length) syncField(cfg, values);
+		});
+
+		// ACF's own change action (covers relationship, taxonomy picker, date, etc.).
+		acf.addAction('change', function (field) {
+			// Try matching by field key first (most reliable), then by name.
+			var cfg = byKey[field.get('key')] || byName[field.get('name')];
+			if (!cfg) return;
+
+			var $el    = field.$el;
+			var values = $el && $el.length ? extractValues($el) : [];
+			if (values.length) syncField(cfg, values);
 		});
 	});
 

@@ -167,11 +167,6 @@ class Settings_Page {
 			? sanitize_email( $input['pending_course_email_address'] )
 			: '';
 
-		// ACF Auto-Tag: Feldkonfiguration (Textarea, eine Zeile pro Feld)
-		$sanitized['auto_tag_fields'] = isset( $input['auto_tag_fields'] )
-			? sanitize_textarea_field( $input['auto_tag_fields'] )
-			: '';
-
 		return $sanitized;
 	}
 
@@ -553,29 +548,14 @@ class Settings_Page {
 						$this->render_checkbox(
 							'auto_tag_enabled',
 							__( 'Auto-Tagging aktivieren', 'soulsites-learndash' ),
-							__( 'Aktiviert die Live-Aktualisierung per AJAX (direkt nach Feldänderung) sowie den Save-Hook (acf/save_post).', 'soulsites-learndash' )
+							__( 'Globaler Schalter. Die eigentliche Konfiguration erfolgt direkt im jeweiligen ACF-Feld unter "Feldgruppen bearbeiten" → Feld auswählen → Option "Auto-Tag für Kurse" aktivieren.', 'soulsites-learndash' )
 						);
-
-						$placeholder = implode( "\n", [
-							'# Feldname : Taxonomie-Slug (Taxonomie ist optional, Standard: ld_course_tag)',
-							'schwierigkeitsgrad',
-							'zielgruppe : ld_course_tag',
-							'format : post_tag',
-						] );
-
-						$this->render_textarea(
-							'auto_tag_fields',
-							__( 'Feldkonfiguration', 'soulsites-learndash' ),
-							sprintf(
-								wp_kses(
-									/* translators: HTML allowed */
-									__( 'Eine Zeile pro Feld: <code>acf_feldname</code> oder <code>acf_feldname:taxonomie_slug</code>.<br>Ohne Taxonomie-Angabe wird <code>ld_course_tag</code> verwendet.<br>Zeilen mit <code>#</code> werden ignoriert.<br><strong>Unterstützte Feldtypen:</strong> Text, Textarea, Select (Einfach- &amp; Mehrfachauswahl), Checkbox, Radio.<br>Bei Select/Checkbox werden die <em>Werte</em> der Auswahloptionen als Tag-Namen verwendet – nicht die Beschriftungen.', 'soulsites-learndash' ),
-									[ 'code' => [], 'br' => [], 'strong' => [], 'em' => [] ]
-								),
-								''
-							),
-							$placeholder
-						);
+						echo '<p class="description soulsites-info-box">'
+							. wp_kses(
+								__( '<strong>So geht\'s:</strong> Öffne eine ACF-Feldgruppe, wähle ein Feld aus (z.&nbsp;B. Checkbox, Select oder Text) und aktiviere dort die Option <em>„Auto-Tag für Kurse"</em>. Optional kann eine abweichende Taxonomie eingetragen werden (Standard: <code>ld_course_tag</code>). Unterstützte Feldtypen: Text, Textarea, Select (Einzel- &amp; Mehrfachauswahl), Checkbox, Radio.', 'soulsites-learndash' ),
+								[ 'strong' => [], 'em' => [], 'code' => [], 'br' => [] ]
+							)
+							. '</p>';
 					}
 				);
 

@@ -12,10 +12,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Reads configured ACF fields on sfwd-courses and syncs their values as
- * taxonomy terms. Runs both live (via AJAX on field change) and on save
- * (via acf/save_post). Previously auto-tagged terms are tracked in post
- * meta so manually added terms are never removed.
+ * Reads ACF fields that have "auto_tag_course" enabled in their field settings
+ * and syncs their values as taxonomy terms on sfwd-courses posts.
+ *
+ * Runs both live (AJAX on field change) and on save (acf/save_post).
+ * Previously auto-tagged terms are tracked in post meta so manually added
+ * terms are never removed.
  */
 class Auto_Tag_Course {
 
@@ -32,42 +34,104 @@ class Auto_Tag_Course {
 	}
 
 	private function __construct() {
+		// Add custom settings to every ACF field (in the field group editor).
+		add_action( 'acf/render_field_settings', [ $this, 'render_acf_field_settings' ] );
+
+		// Sync tags after ACF saves field values.
 		add_action( 'acf/save_post', [ $this, 'sync_tags_on_save' ], 20 );
+
+		// AJAX endpoint for live update while editing a course.
 		add_action( 'wp_ajax_soulsites_auto_tag_course', [ $this, 'ajax_sync_field_tags' ] );
+
+		// Enqueue live-update script on course edit screens.
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_scripts' ] );
 	}
 
 	// -------------------------------------------------------------------------
-	// Config helpers
+	// ACF field settings UI
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Parse the textarea config into an array of [ field => string, taxonomy => string ].
-	 * Each non-empty line: "fieldname" or "fieldname:taxonomy_slug"
-	 * Lines starting with # are comments.
+	 * Append "Auto-Tag" toggle and taxonomy selector to every ACF field's
+	 * settings tab in the field group editor.
 	 *
-	 * @return array<int, array{field: string, taxonomy: string}>
+	 * ACF stores any value rendered via acf_render_field_setting() as part of
+	 * the field definition – no extra save hook needed.
+	 *
+	 * @param array $field ACF field array.
 	 */
-	public static function get_field_config(): array {
-		$raw = Settings_Page::get_option( 'auto_tag_fields', '' );
-		if ( empty( $raw ) ) {
+	public function render_acf_field_settings( array $field ): void {
+		acf_render_field_setting( $field, [
+			'label'         => __( 'Auto-Tag für Kurse', 'soulsites-learndash' ),
+			'instructions'  => __( 'Werte dieses Feldes automatisch als Tags am Kurs anlegen (live + beim Speichern).', 'soulsites-learndash' ),
+			'type'          => 'true_false',
+			'name'          => 'auto_tag_course',
+			'ui'            => 1,
+			'default_value' => 0,
+		] );
+
+		acf_render_field_setting( $field, [
+			'label'        => __( 'Auto-Tag Taxonomie', 'soulsites-learndash' ),
+			'instructions' => __( 'Slug der Taxonomie, in der die Tags angelegt werden. Standard: ld_course_tag', 'soulsites-learndash' ),
+			'type'         => 'text',
+			'name'         => 'auto_tag_course_taxonomy',
+			'placeholder'  => 'ld_course_tag',
+			'conditional_logic' => [
+				[
+					[
+						'field'    => 'auto_tag_course',
+						'operator' => '==',
+						'value'    => '1',
+					],
+				],
+			],
+		] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Config: scan ACF field groups for enabled fields
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Return all ACF fields (on sfwd-courses) that have auto_tag_course enabled.
+	 * Pass $post_id to respect per-post field-group location rules.
+	 *
+	 * @param  int $post_id  Course post ID (0 = scan all groups for the post type).
+	 * @return array<int, array{field: string, key: string, taxonomy: string}>
+	 */
+	public static function get_field_config( int $post_id = 0 ): array {
+		if ( ! function_exists( 'acf_get_field_groups' ) || ! function_exists( 'acf_get_fields' ) ) {
 			return [];
 		}
 
+		$args = $post_id
+			? [ 'post_id' => $post_id ]
+			: [ 'post_type' => 'sfwd-courses' ];
+
+		$groups = acf_get_field_groups( $args );
 		$config = [];
-		foreach ( explode( "\n", $raw ) as $line ) {
-			$line = trim( $line );
-			if ( $line === '' || $line[0] === '#' ) {
+
+		foreach ( $groups as $group ) {
+			$fields = acf_get_fields( $group['key'] );
+			if ( ! is_array( $fields ) ) {
 				continue;
 			}
-			$parts    = array_map( 'trim', explode( ':', $line, 2 ) );
-			$field    = $parts[0];
-			$taxonomy = ( isset( $parts[1] ) && $parts[1] !== '' ) ? $parts[1] : 'ld_course_tag';
+			foreach ( $fields as $field ) {
+				if ( empty( $field['auto_tag_course'] ) ) {
+					continue;
+				}
+				$taxonomy = ( ! empty( $field['auto_tag_course_taxonomy'] ) )
+					? sanitize_key( $field['auto_tag_course_taxonomy'] )
+					: 'ld_course_tag';
 
-			if ( $field !== '' ) {
-				$config[] = [ 'field' => $field, 'taxonomy' => $taxonomy ];
+				$config[] = [
+					'field'    => $field['name'],
+					'key'      => $field['key'],
+					'taxonomy' => $taxonomy,
+				];
 			}
 		}
+
 		return $config;
 	}
 
@@ -77,31 +141,43 @@ class Auto_Tag_Course {
 
 	/**
 	 * Sync tags after ACF writes all field values (priority 20).
+	 * Iterates the submitted ACF field keys so only visible fields are processed.
 	 *
 	 * @param int|string $post_id
 	 */
 	public function sync_tags_on_save( $post_id ) {
+		if ( ! Settings_Page::get_option( 'auto_tag_enabled' ) ) {
+			return;
+		}
 		$post_id = absint( $post_id );
 		if ( get_post_type( $post_id ) !== 'sfwd-courses' ) {
 			return;
 		}
 
-		$field_config = self::get_field_config();
-		if ( empty( $field_config ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification
+		if ( empty( $_POST['acf'] ) || ! is_array( $_POST['acf'] ) ) {
 			return;
 		}
 
-		// Group by taxonomy so we can handle multiple fields → same taxonomy correctly.
 		$by_taxonomy = [];
-		foreach ( $field_config as $cfg ) {
-			$value      = get_field( $cfg['field'], $post_id );
-			$term_names = $this->normalize_value( $value );
-			$tax        = $cfg['taxonomy'];
 
-			if ( ! isset( $by_taxonomy[ $tax ] ) ) {
-				$by_taxonomy[ $tax ] = [];
+		// phpcs:ignore WordPress.Security.NonceVerification
+		foreach ( array_keys( $_POST['acf'] ) as $field_key ) {
+			$field = acf_get_field( $field_key );
+			if ( ! $field || empty( $field['auto_tag_course'] ) ) {
+				continue;
 			}
-			$by_taxonomy[ $tax ] = array_merge( $by_taxonomy[ $tax ], $term_names );
+
+			$taxonomy   = ( ! empty( $field['auto_tag_course_taxonomy'] ) )
+				? sanitize_key( $field['auto_tag_course_taxonomy'] )
+				: 'ld_course_tag';
+			$value      = get_field( $field['name'], $post_id );
+			$term_names = $this->normalize_value( $value );
+
+			if ( ! isset( $by_taxonomy[ $taxonomy ] ) ) {
+				$by_taxonomy[ $taxonomy ] = [];
+			}
+			$by_taxonomy[ $taxonomy ] = array_merge( $by_taxonomy[ $taxonomy ], $term_names );
 		}
 
 		foreach ( $by_taxonomy as $taxonomy => $term_names ) {
@@ -115,20 +191,23 @@ class Auto_Tag_Course {
 
 	/**
 	 * AJAX endpoint called by admin-auto-tag.js immediately after a field changes.
-	 * Receives raw field values from JS (before the post is saved).
 	 */
 	public function ajax_sync_field_tags() {
 		check_ajax_referer( 'soulsites_auto_tag_nonce', 'nonce' );
+
+		if ( ! Settings_Page::get_option( 'auto_tag_enabled' ) ) {
+			wp_send_json_error( 'Feature disabled' );
+		}
 
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_error( 'Unauthorized', 403 );
 		}
 
-		$post_id  = isset( $_POST['post_id'] )  ? absint( $_POST['post_id'] )  : 0;
-		$field    = isset( $_POST['field'] )    ? sanitize_key( $_POST['field'] )    : '';
-		$taxonomy = isset( $_POST['taxonomy'] ) ? sanitize_key( $_POST['taxonomy'] ) : 'ld_course_tag';
+		$post_id   = isset( $_POST['post_id'] )  ? absint( $_POST['post_id'] )           : 0;
+		$field_key = isset( $_POST['field_key'] ) ? sanitize_text_field( wp_unslash( $_POST['field_key'] ) ) : '';
+		$taxonomy  = isset( $_POST['taxonomy'] )  ? sanitize_key( $_POST['taxonomy'] )    : 'ld_course_tag';
 
-		if ( ! $post_id || ! $field ) {
+		if ( ! $post_id || ! $field_key ) {
 			wp_send_json_error( 'Missing parameters' );
 		}
 
@@ -140,11 +219,15 @@ class Auto_Tag_Course {
 			wp_send_json_error( 'Unauthorized', 403 );
 		}
 
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- normalized below
-		$raw_value = isset( $_POST['value'] ) ? wp_unslash( $_POST['value'] ) : null;
+		// Verify the field actually has auto_tag_course enabled.
+		$field = acf_get_field( $field_key );
+		if ( ! $field || empty( $field['auto_tag_course'] ) ) {
+			wp_send_json_error( 'Field not configured for auto-tagging' );
+		}
 
-		$term_names = $this->normalize_value( $raw_value );
-		$term_names = array_unique( array_filter( $term_names ) );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- normalized below
+		$raw_value  = isset( $_POST['value'] ) ? wp_unslash( $_POST['value'] ) : null;
+		$term_names = array_unique( array_filter( $this->normalize_value( $raw_value ) ) );
 
 		$this->set_auto_terms( $post_id, $term_names, $taxonomy );
 
@@ -163,7 +246,7 @@ class Auto_Tag_Course {
 	 * $post_id without touching manually added terms.
 	 *
 	 * @param int      $post_id
-	 * @param string[] $term_names Human-readable names (will be created if absent).
+	 * @param string[] $term_names Human-readable names (created if absent).
 	 * @param string   $taxonomy   Taxonomy slug.
 	 */
 	private function set_auto_terms( int $post_id, array $term_names, string $taxonomy ): void {
@@ -171,7 +254,6 @@ class Auto_Tag_Course {
 			return;
 		}
 
-		// Ensure all desired terms exist and collect IDs.
 		$new_ids = [];
 		foreach ( $term_names as $name ) {
 			$name = trim( $name );
@@ -187,27 +269,18 @@ class Auto_Tag_Course {
 			}
 		}
 
-		// Determine which term IDs were previously auto-managed.
 		$meta_key    = self::META_PREFIX . $taxonomy;
 		$prev_ids    = get_post_meta( $post_id, $meta_key, true );
 		$prev_ids    = is_array( $prev_ids ) ? array_map( 'intval', $prev_ids ) : [];
 
-		// Current terms on the post.
 		$current_ids = wp_get_object_terms( $post_id, $taxonomy, [ 'fields' => 'ids' ] );
-		if ( is_wp_error( $current_ids ) ) {
-			$current_ids = [];
-		}
-		$current_ids = array_map( 'intval', $current_ids );
+		$current_ids = is_wp_error( $current_ids ) ? [] : array_map( 'intval', $current_ids );
 
-		// Keep terms that were NOT previously auto-managed (= manually added).
+		// Preserve manually added terms (those not in the previous auto-managed set).
 		$manual_ids = array_diff( $current_ids, $prev_ids );
-
-		// Final set = manual terms + newly auto-tagged terms.
-		$final_ids = array_values( array_unique( array_merge( $manual_ids, $new_ids ) ) );
+		$final_ids  = array_values( array_unique( array_merge( $manual_ids, $new_ids ) ) );
 
 		wp_set_object_terms( $post_id, $final_ids, $taxonomy, false );
-
-		// Persist the new auto-managed list so the next save can subtract them correctly.
 		update_post_meta( $post_id, $meta_key, $new_ids );
 	}
 
@@ -216,13 +289,10 @@ class Auto_Tag_Course {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Normalise any ACF value (or raw JS-submitted value) into an array of
-	 * plain string names suitable for use as taxonomy term names.
+	 * Normalize any ACF value or raw JS-submitted value into an array of
+	 * plain strings suitable as taxonomy term names.
 	 *
-	 * Handles: scalar, comma-separated string, array of scalars, array of
-	 * ACF choice arrays (value/label), WP_Term objects, WP_Post objects.
-	 *
-	 * @param mixed $value
+	 * @param  mixed $value
 	 * @return string[]
 	 */
 	private function normalize_value( $value ): array {
@@ -247,7 +317,7 @@ class Auto_Tag_Course {
 						$names[] = $v;
 					}
 				} elseif ( is_array( $item ) ) {
-					// ACF select/checkbox choice: prefer 'label', fall back to 'value'.
+					// ACF select/checkbox choice: prefer label, fall back to value.
 					$v = trim( (string) ( $item['label'] ?? $item['value'] ?? '' ) );
 					if ( $v !== '' ) {
 						$names[] = $v;
@@ -269,12 +339,12 @@ class Auto_Tag_Course {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Load the live-update script only on sfwd-courses edit screens when the
-	 * feature is enabled and at least one field is configured.
+	 * Load the live-update script on course edit screens when at least one
+	 * field in the current post's field groups has auto_tag_course enabled.
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
-	public function enqueue_admin_scripts( $hook ) {
+	public function enqueue_admin_scripts( string $hook ): void {
 		if ( ! in_array( $hook, [ 'post.php', 'post-new.php' ], true ) ) {
 			return;
 		}
@@ -284,11 +354,9 @@ class Auto_Tag_Course {
 			return;
 		}
 
-		if ( ! Settings_Page::get_option( 'auto_tag_enabled' ) ) {
-			return;
-		}
+		$post_id      = absint( get_the_ID() );
+		$field_config = self::get_field_config( $post_id );
 
-		$field_config = self::get_field_config();
 		if ( empty( $field_config ) ) {
 			return;
 		}
@@ -307,7 +375,7 @@ class Auto_Tag_Course {
 			[
 				'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
 				'nonce'       => wp_create_nonce( 'soulsites_auto_tag_nonce' ),
-				'postId'      => get_the_ID(),
+				'postId'      => $post_id,
 				'fieldConfig' => $field_config,
 				'i18n'        => [
 					'tagged' => __( 'Tags gesetzt:', 'soulsites-learndash' ),
