@@ -185,6 +185,7 @@ final class SoulSites_LearnDash_Elementor {
 			add_action( 'elementor/init', [ $this, 'init_element_conditions' ], 10 );
 		}
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_styles' ] );
+		add_action( 'wp_enqueue_scripts',   [ $this, 'enqueue_frontend_assets' ] );
 	}
 
 	/**
@@ -307,6 +308,35 @@ final class SoulSites_LearnDash_Elementor {
 				SOULSITES_LEARNDASH_VERSION
 			);
 		}
+	}
+
+	/**
+	 * Enqueue frontend assets (CSS/JS) – only outside the Elementor editor.
+	 */
+	public function enqueue_frontend_assets() {
+		if ( ! \SoulSites\Settings_Page::get_option( 'enable_lazy_slider' ) ) {
+			return;
+		}
+
+		// Never load inside the Elementor editor iframe.
+		if ( isset( $_GET['elementor-preview'] ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'soulsites-lazy-slider',
+			SOULSITES_LEARNDASH_URL . 'assets/css/lazy-slider.css',
+			[],
+			SOULSITES_LEARNDASH_VERSION
+		);
+
+		wp_enqueue_script(
+			'soulsites-lazy-slider',
+			SOULSITES_LEARNDASH_URL . 'assets/js/lazy-slider.js',
+			[ 'jquery', 'elementor-frontend' ],
+			SOULSITES_LEARNDASH_VERSION,
+			true
+		);
 	}
 
 	/**
