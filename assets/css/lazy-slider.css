@@ -1,0 +1,94 @@
+/* =========================================================
+   SoulSites – Lazy Slider Skeleton
+   ========================================================= */
+
+/* While a slider is pending, hide the real Swiper content */
+.ss-lazy-slider .swiper {
+    visibility: hidden;
+}
+
+/* ---- Skeleton wrapper ------------------------------------ */
+.ss-lazy-skeleton {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    gap: 16px;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 10;
+    padding: 0;
+}
+
+/* ---- Single skeleton card -------------------------------- */
+.ss-lazy-skeleton__card {
+    flex: 1 1 0;
+    min-width: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Thumbnail placeholder (16 : 9) */
+.ss-lazy-skeleton__thumb {
+    width: 100%;
+    padding-top: 56.25%;
+    flex-shrink: 0;
+    background: linear-gradient(
+        90deg,
+        #ebebeb 25%,
+        #d6d6d6 50%,
+        #ebebeb 75%
+    );
+    background-size: 400% 100%;
+    animation: ss-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Text-line area */
+.ss-lazy-skeleton__body {
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+}
+
+/* Individual text lines */
+.ss-lazy-skeleton__line {
+    height: 11px;
+    border-radius: 4px;
+    background: linear-gradient(
+        90deg,
+        #ebebeb 25%,
+        #d6d6d6 50%,
+        #ebebeb 75%
+    );
+    background-size: 400% 100%;
+    animation: ss-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Stagger the animation per line so they don't all pulse together */
+.ss-lazy-skeleton__line:nth-child(1) {
+    width: 85%;
+    animation-delay: 0s;
+}
+.ss-lazy-skeleton__line:nth-child(2) {
+    width: 65%;
+    animation-delay: 0.15s;
+}
+.ss-lazy-skeleton__line:nth-child(3) {
+    width: 45%;
+    animation-delay: 0.3s;
+}
+
+/* Shimmer keyframes */
+@keyframes ss-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+/* Ensure the widget wrapper creates a stacking context for the skeleton */
+.elementor-widget-loop-slider.ss-lazy-slider {
+    position: relative;
+}

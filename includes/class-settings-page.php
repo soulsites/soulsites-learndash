@@ -124,6 +124,8 @@ class Settings_Page {
 			'pending_course_email_enabled'        => 0,
 			// ACF Auto-Tag
 			'auto_tag_enabled'                    => 1,
+			// Performance
+			'enable_lazy_slider'                  => 0,
 		];
 	}
 
@@ -583,6 +585,21 @@ class Settings_Page {
 							__( 'Empfänger-E-Mail-Adresse', 'soulsites-learndash' ),
 							__( 'E-Mail-Adresse, an die die Benachrichtigung gesendet wird. Muss ausgefüllt sein, damit die Benachrichtigung verschickt wird.', 'soulsites-learndash' ),
 							'email'
+						);
+					}
+				);
+				// -----------------------------------------------------------------
+				// 9. Performance
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'performance',
+					__( 'Performance', 'soulsites-learndash' ),
+					__( 'Optimierungen für Seiten mit vielen Elementor-Elementen.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'enable_lazy_slider',
+							__( 'Loop Slider Lazy Loading', 'soulsites-learndash' ),
+							__( 'Initialisiert Elementor Loop Slider erst wenn sie in die Nähe des Viewports scrollen. Zeigt bis dahin einen animierten Skeleton-Platzhalter. Sinnvoll auf Seiten mit vielen Slidern.', 'soulsites-learndash' )
 						);
 					}
 				);
