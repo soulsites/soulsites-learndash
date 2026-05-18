@@ -1,70 +1,49 @@
 (function () {
     'use strict';
 
-    var LazySliderManager = function () {
-        this._pending = new Map();
-        this._observer = new IntersectionObserver(
-            this._onIntersect.bind(this),
-            { rootMargin: '300px 0px' }
-        );
-    };
+    // Both known widget type names for carousel-style loop widgets
+    var LAZY_TYPES = ['loop-carousel', 'loop-slider'];
 
-    LazySliderManager.prototype.init = function () {
-        var self = this;
-        window.elementorFrontend.hooks.addAction(
-            'frontend/element_ready/loop-slider.default',
-            function ($scope) {
-                self._handleSlider($scope);
-            }
-        );
-    };
+    function isLazyWidgetType(widgetType) {
+        if (!widgetType) return false;
+        var base = widgetType.split('.')[0];
+        return LAZY_TYPES.indexOf(base) !== -1;
+    }
 
-    LazySliderManager.prototype._handleSlider = function ($scope) {
-        var el = $scope[0];
-
-        // Guard: skip if already processed by us
-        if (typeof el.dataset.ssLazy !== 'undefined') {
-            return;
-        }
-
+    function isNearViewport(el) {
         var rect = el.getBoundingClientRect();
-        var isNearViewport = rect.top < window.innerHeight + 300;
+        return rect.top < window.innerHeight + 300;
+    }
 
-        if (isNearViewport) {
-            el.dataset.ssLazy = 'ready';
-            return;
+    function getCardCount(el) {
+        var container = el.querySelector('.elementor-loop-container');
+        if (!container) return 3;
+
+        // Elementor stores Swiper options as JSON on the container
+        var raw = container.dataset.swiperOptions
+            || container.dataset.elementorSwiperOptions
+            || '';
+
+        if (raw) {
+            try {
+                var opts = JSON.parse(raw);
+                var perView = opts.slidesPerView || opts.slides_per_view;
+                if (perView && perView !== 'auto' && parseFloat(perView) > 0) {
+                    return Math.min(Math.ceil(parseFloat(perView)) + 1, 6);
+                }
+            } catch (e) {}
         }
 
-        // Destroy the Swiper instance Elementor just created
-        var swiperEl = el.querySelector('.swiper');
-        if (swiperEl && swiperEl.swiper) {
-            swiperEl.swiper.destroy(true, true);
-        }
+        return 3;
+    }
 
-        el.dataset.ssLazy = 'pending';
-        el.classList.add('ss-lazy-slider');
-        this._injectSkeleton(el);
-
-        this._pending.set(el, $scope);
-        this._observer.observe(el);
-    };
-
-    LazySliderManager.prototype._injectSkeleton = function (el) {
-        // Derive card count from visible slides setting stored on the swiper container
-        var swiperEl  = el.querySelector('.swiper');
-        var cardCount = 3;
-        if (swiperEl) {
-            var perView = parseInt(swiperEl.dataset.ssSlidesPerView, 10);
-            if (!isNaN(perView) && perView > 0) {
-                cardCount = perView;
-            }
-        }
-
+    function injectSkeleton(el) {
+        var cardCount = getCardCount(el);
         var skeleton = document.createElement('div');
         skeleton.className = 'ss-lazy-skeleton';
 
         for (var i = 0; i < cardCount; i++) {
-            var card  = document.createElement('div');
+            var card = document.createElement('div');
             card.className = 'ss-lazy-skeleton__card';
 
             var thumb = document.createElement('div');
@@ -83,52 +62,63 @@
             skeleton.appendChild(card);
         }
 
+        el.classList.add('ss-lazy-slider');
         el.appendChild(skeleton);
-    };
+    }
 
-    LazySliderManager.prototype._removeSkeleton = function (el) {
+    function removeSkeleton(el) {
         var skeleton = el.querySelector('.ss-lazy-skeleton');
-        if (skeleton) {
-            skeleton.remove();
-        }
+        if (skeleton) skeleton.remove();
         el.classList.remove('ss-lazy-slider');
-    };
-
-    LazySliderManager.prototype._onIntersect = function (entries) {
-        var self = this;
-        entries.forEach(function (entry) {
-            if (!entry.isIntersecting) {
-                return;
-            }
-
-            var el     = entry.target;
-            var $scope = self._pending.get(el);
-
-            self._observer.unobserve(el);
-            self._pending.delete(el);
-
-            if (!$scope) {
-                return;
-            }
-
-            // Mark as ready BEFORE runReadyTrigger so our hook guard fires
-            el.dataset.ssLazy = 'ready';
-            self._removeSkeleton(el);
-
-            if (
-                window.elementorFrontend.elementsHandler &&
-                typeof window.elementorFrontend.elementsHandler.runReadyTrigger === 'function'
-            ) {
-                window.elementorFrontend.elementsHandler.runReadyTrigger($scope);
-            }
-        });
-    };
+    }
 
     jQuery(window).on('elementor/frontend/init', function () {
-        if (typeof window.elementorFrontend === 'undefined') {
-            return;
-        }
-        var manager = new LazySliderManager();
-        manager.init();
+        if (!window.elementorFrontend || !elementorFrontend.elementsHandler) return;
+
+        var handler = elementorFrontend.elementsHandler;
+
+        // Guard: only patch once
+        if (handler._ssLazyPatched) return;
+        handler._ssLazyPatched = true;
+
+        var originalRunReadyTrigger = handler.runReadyTrigger.bind(handler);
+        var pending = new Map();
+
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+
+                var el = entry.target;
+                observer.unobserve(el);
+
+                var data = pending.get(el);
+                if (!data) return;
+                pending.delete(el);
+
+                removeSkeleton(el);
+
+                // Now let Elementor initialize the widget normally
+                originalRunReadyTrigger(data.$scope);
+            });
+        }, { rootMargin: '300px 0px' });
+
+        handler.runReadyTrigger = function ($scope) {
+            var el = $scope[0];
+
+            if (!isLazyWidgetType($scope.data('widget_type'))) {
+                return originalRunReadyTrigger($scope);
+            }
+
+            // Already handled (re-entry from observer callback) or close enough
+            if (el.dataset.ssLazyDone || isNearViewport(el)) {
+                el.dataset.ssLazyDone = '1';
+                return originalRunReadyTrigger($scope);
+            }
+
+            // Defer: skip Swiper init entirely until in viewport
+            injectSkeleton(el);
+            pending.set(el, { $scope: $scope });
+            observer.observe(el);
+        };
     });
 })();
