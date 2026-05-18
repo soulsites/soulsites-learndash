@@ -28,6 +28,15 @@ define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
 require_once SOULSITES_LEARNDASH_PATH . 'includes/class-settings-page.php';
 SoulSites\Settings_Page::get_instance();
 
+// Cart Course Description – läuft unabhängig von Elementor, benötigt nur WooCommerce + LearnDash.
+require_once SOULSITES_LEARNDASH_PATH . 'includes/class-cart-course-description.php';
+add_action( 'plugins_loaded', function () {
+	if ( class_exists( 'WooCommerce' ) && defined( 'LEARNDASH_VERSION' )
+		&& \SoulSites\Settings_Page::get_option( 'enable_cart_course_description' ) ) {
+		\SoulSites\Cart_Course_Description::get_instance();
+	}
+}, 15 );
+
 // ACF Auto-Tag – läuft unabhängig von Elementor, benötigt nur ACF + LearnDash.
 // Wird immer initialisiert wenn ACF und LearnDash aktiv sind, damit acf/render_field_settings
 // die Checkbox in den Feld-Einstellungen anzeigt. Der globale Toggle steuert nur die

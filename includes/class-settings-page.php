@@ -120,6 +120,8 @@ class Settings_Page {
 			'enable_query_tutor_courses'          => 1,
 			'enable_query_acf_course_filter'      => 1,
 			'enable_query_course_tag_filter'      => 1,
+			// WooCommerce Warenkorb
+			'enable_cart_course_description'      => 1,
 			// E-Mail Benachrichtigungen
 			'pending_course_email_enabled'        => 0,
 			// ACF Auto-Tag
@@ -162,6 +164,11 @@ class Settings_Page {
 		foreach ( $bool_keys as $key ) {
 			$sanitized[ $key ] = ! empty( $input[ $key ] ) ? 1 : 0;
 		}
+
+		// ACF-Feldname für Warenkorb-Kursbeschreibung
+		$sanitized['cart_course_description_acf_field'] = isset( $input['cart_course_description_acf_field'] )
+			? sanitize_text_field( $input['cart_course_description_acf_field'] )
+			: '';
 
 		// E-Mail-Adresse (Textfeld)
 		$sanitized['pending_course_email_address'] = isset( $input['pending_course_email_address'] )
@@ -566,7 +573,28 @@ class Settings_Page {
 				);
 
 				// -----------------------------------------------------------------
-				// 8. E-Mail Benachrichtigungen
+				// 8. WooCommerce Warenkorb
+				// -----------------------------------------------------------------
+				$this->render_section(
+					'cart',
+					__( 'WooCommerce Warenkorb', 'soulsites-learndash' ),
+					__( 'Zeigt im Warenkorb bei Produkten, die mit einem LearnDash-Kurs verknüpft sind, die Kursbeschreibung statt der Produktbeschreibung an.', 'soulsites-learndash' ),
+					function () {
+						$this->render_checkbox(
+							'enable_cart_course_description',
+							__( 'Kursbeschreibung im Warenkorb anzeigen', 'soulsites-learndash' ),
+							__( 'Hängt unterhalb des Produktnamens im Warenkorb die Beschreibung des verknüpften Kurses an. Quelle: ACF-Feld (wenn angegeben), sonst WordPress-Kurzbeschreibung, dann Inhalt des Kurses.', 'soulsites-learndash' )
+						);
+						$this->render_text_input(
+							'cart_course_description_acf_field',
+							__( 'ACF-Feldname (optional)', 'soulsites-learndash' ),
+							__( 'Name (Slug) des ACF-Felds am Kurs, das als Beschreibung ausgegeben werden soll. Leer lassen, um die WordPress-Kurzbeschreibung (Auszug) zu verwenden.', 'soulsites-learndash' )
+						);
+					}
+				);
+
+				// -----------------------------------------------------------------
+				// 9. E-Mail Benachrichtigungen
 				// -----------------------------------------------------------------
 				$this->render_section(
 					'email-alt',
