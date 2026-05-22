@@ -349,6 +349,15 @@ class Auto_Tag_Course {
 			return;
 		}
 
+		// Always load the taxonomy-checkbox fix on course edit screens.
+		wp_enqueue_script(
+			'soulsites-taxonomy-fix',
+			SOULSITES_LEARNDASH_URL . 'assets/js/admin-taxonomy-fix.js',
+			[ 'acf-input', 'jquery' ],
+			SOULSITES_LEARNDASH_VERSION,
+			true
+		);
+
 		$post_id      = absint( get_the_ID() );
 		$field_config = self::get_field_config( $post_id );
 
