@@ -28,7 +28,7 @@ body.post-type-sfwd-courses textarea {
 body.post-type-sfwd-courses .select2-selection {
     border: none;
     padding: 4px;
-    height: 48px;
+    min-height: 48px;
     background: #ffffff;
     border-radius: 6px;
 }
