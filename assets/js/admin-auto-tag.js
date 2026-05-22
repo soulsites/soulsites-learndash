@@ -155,7 +155,7 @@
 			if (!cfg) return;
 
 			var values = extractValues($el);
-			if (values.length) syncField(cfg, values);
+			syncField(cfg, values);
 		});
 
 		// ACF's own change action (covers relationship, taxonomy picker, date, etc.).
@@ -166,7 +166,7 @@
 
 			var $el    = field.$el;
 			var values = $el && $el.length ? extractValues($el) : [];
-			if (values.length) syncField(cfg, values);
+			syncField(cfg, values);
 		});
 	});
 
