@@ -54,6 +54,10 @@ class Element_Conditions {
 		foreach ( [ 'widget', 'section', 'column', 'container' ] as $type ) {
 			add_action( "elementor/frontend/{$type}/before_render", [ $this, 'before_render' ] );
 		}
+
+		// Inline-Script + CSS im <head> für WP Rocket / CDN-Cache-Kompatibilität.
+		// Läuft synchron bevor der Browser den Body rendert → kein FOUC.
+		add_action( 'wp_head', [ $this, 'print_cache_compat_script' ], 1 );
 	}
 
 	// =========================================================================
@@ -180,9 +184,40 @@ class Element_Conditions {
 
 		$course_id = (int) $element->get_settings_for_display( 'ss_condition_course_id' );
 
+		// Login-Status-Bedingungen: data-Attribut setzen; das Ausblenden übernimmt
+		// das CSS-Klassen-System aus print_cache_compat_script(). So funktioniert
+		// die Sichtbarkeit auch bei gecachten Seiten (WP Rocket, CDN etc.),
+		// weil das Inline-Script im <head> den Login-Status per Cookie prüft und
+		// synchron vor dem Body-Rendering die richtige CSS-Klasse setzt.
+		if ( 'logged_in' === $condition || 'logged_out' === $condition ) {
+			$element->add_render_attribute( '_wrapper', 'data-ss-condition', $condition );
+			return;
+		}
+
+		// Kurs-Bedingungen: PHP-seitiges Ausblenden (erfordern Server-seitige Prüfung).
 		if ( ! $this->evaluate( $condition, $course_id ) ) {
 			$element->add_render_attribute( '_wrapper', 'style', 'display:none !important;' );
 		}
+	}
+
+	/**
+	 * Gibt ein kleines Inline-Script + CSS im <head> aus.
+	 *
+	 * Das Script erkennt den WordPress-Login-Status anhand des Cookies
+	 * (wordpress_logged_in_*) und setzt eine CSS-Klasse am <html>-Element.
+	 * Die CSS-Regeln blenden Elemente mit data-ss-condition entsprechend aus.
+	 *
+	 * Läuft synchron (kein defer/async) → der Browser blendet Elemente bereits
+	 * beim ersten Rendern korrekt aus, kein Flash of Wrong Content.
+	 * Funktioniert unabhängig davon, ob WP Rocket die Seite gecacht hat.
+	 */
+	public function print_cache_compat_script() {
+		?>
+<script data-cfasync="false">
+(function(){var c=document.cookie.split(';').some(function(s){return s.trim().indexOf('wordpress_logged_in_')===0;});document.documentElement.classList.add(c?'ss-user-logged-in':'ss-user-logged-out');})();
+</script>
+<style>html.ss-user-logged-out [data-ss-condition="logged_in"],html.ss-user-logged-in [data-ss-condition="logged_out"]{display:none !important}</style>
+		<?php
 	}
 
 	// =========================================================================
