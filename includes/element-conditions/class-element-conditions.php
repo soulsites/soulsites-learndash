@@ -64,21 +64,36 @@ class Element_Conditions {
 	 * Fügt unseren Abschnitt nach dem letzten Abschnitt im Advanced-Tab ein.
 	 * Kompatibel mit Elementor Free und Elementor Pro (verschiedene letzte Abschnitte).
 	 *
+	 * Primär: bekannte Section-IDs am Ende des Advanced-Tabs.
+	 * Fallback: beliebige Advanced-Tab-Sektion via $args['tab'] (zukunftssicher für
+	 * neue Elementor-Versionen, die andere Section-IDs verwenden).
+	 *
 	 * @param \Elementor\Element_Base $element
 	 * @param string                  $section_id
 	 * @param array                   $args
 	 */
 	public function maybe_add_controls( $element, $section_id, $args ) {
-		// Mögliche IDs des letzten Abschnitts im Advanced-Tab, je nach Version.
+		// Bekannte Section-IDs am Ende des Advanced-Tabs (je nach Elementor-Version).
 		static $trigger_sections = [
-			'_section_custom_css_pro', // Elementor Pro (aktuell)
-			'_section_custom_css',     // Elementor Pro (ältere Versionen)
-			'_section_render_visible', // Elementor Free (ältere Versionen)
-			'_section_responsive',     // Elementor Free (aktuell)
-			'section_effects',         // Motion Effects (Fallback)
+			'_section_custom_css_pro',     // Elementor Pro (vor 3.19)
+			'_section_custom_css',         // Elementor Free/Pro (3.19+)
+			'_section_render_visible',     // Elementor Free (älter)
+			'_section_responsive',         // Elementor Free (aktuell)
+			'section_effects',             // Motion Effects
+			'_section_render_conditions',  // Elementor Pro Display Conditions (3.19+)
+			'_section_display_conditions', // Elementor Pro Display Conditions (alternatives ID)
 		];
 
-		if ( ! in_array( $section_id, $trigger_sections, true ) ) {
+		$is_preferred = in_array( $section_id, $trigger_sections, true );
+
+		// Fallback: falls keine bekannte Sektion zutrifft, aber wir uns im Advanced-Tab
+		// befinden – Controls trotzdem registrieren, damit zukünftige Elementor-Versionen
+		// mit neuen Section-IDs weiterhin funktionieren.
+		$is_advanced_fallback = ! $is_preferred
+			&& isset( $args['tab'] )
+			&& \Elementor\Controls_Manager::TAB_ADVANCED === $args['tab'];
+
+		if ( ! $is_preferred && ! $is_advanced_fallback ) {
 			return;
 		}
 
@@ -149,7 +164,8 @@ class Element_Conditions {
 	/** @param \Elementor\Element_Base $element */
 	public function before_render( $element ) {
 		// Im Editor und Preview immer alles anzeigen.
-		if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
+		if ( \Elementor\Plugin::$instance->editor &&
+		     \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
 			return;
 		}
 		if ( \Elementor\Plugin::$instance->preview &&
