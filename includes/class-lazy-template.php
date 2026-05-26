@@ -107,6 +107,18 @@ class Lazy_Template {
 			wp_send_json_error( [ 'code' => 'elementor_inactive' ], 500 );
 		}
 
+		// admin-ajax.php never fires `template_redirect`, so Elementor's
+		// Frontend::init() (which sets the internal _is_frontend_mode flag and
+		// registers all the elementor/frontend/* hooks) is skipped.  Some
+		// widget render paths – notably the Loop Grid with a carousel display
+		// type – check that flag and silently fall back to grid output if it
+		// is missing.  Calling init() manually here mirrors a normal page
+		// load and is idempotent (Elementor guards against double-init).
+		$frontend = \Elementor\Plugin::instance()->frontend;
+		if ( method_exists( $frontend, 'init' ) ) {
+			$frontend->init();
+		}
+
 		// In admin-ajax.php, WordPress does not call wp() so $wp_query and $post
 		// are uninitialised.  Elementor's loop widgets build their own WP_Query,
 		// but some pre_get_posts filters (including our own purchase filter) may
