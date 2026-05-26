@@ -126,6 +126,7 @@ class Settings_Page {
 			'auto_tag_enabled'                    => 1,
 			// Performance
 			'enable_lazy_slider'                  => 0,
+			'enable_lazy_template'                => 0,
 		];
 	}
 
@@ -601,6 +602,17 @@ class Settings_Page {
 							__( 'Loop Slider Lazy Loading', 'soulsites-learndash' ),
 							__( 'Initialisiert Elementor Loop Slider erst wenn sie in die Nähe des Viewports scrollen. Zeigt bis dahin einen animierten Skeleton-Platzhalter. Sinnvoll auf Seiten mit vielen Slidern.', 'soulsites-learndash' )
 						);
+						$this->render_checkbox(
+							'enable_lazy_template',
+							__( 'Lazy Template Shortcode', 'soulsites-learndash' ),
+							__( 'Aktiviert den [ss_lazy_template id="123"]-Shortcode. Das angegebene Elementor-Template wird erst per AJAX nachgeladen, wenn der Besucher in seine Nähe scrollt. Zeigt bis dahin einen Skeleton-Platzhalter. Funktioniert auch mit Loop Carousels und Grids innerhalb des Templates.', 'soulsites-learndash' )
+						);
+						echo '<p class="description soulsites-info-box">'
+							. wp_kses(
+								__( '<strong>Verwendung:</strong> <code>[ss_lazy_template id="123"]</code> – ersetze <code>123</code> durch die ID des Elementor-Templates (Typ: Abschnitt oder vollständige Seite aus der Template-Bibliothek). Optional: <code>height="400px"</code> legt die Mindesthöhe des Platzhalters fest.', 'soulsites-learndash' ),
+								[ 'strong' => [], 'code' => [] ]
+							)
+							. '</p>';
 					}
 				);
 				?>

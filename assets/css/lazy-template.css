@@ -1,0 +1,128 @@
+/* =============================================================
+   SoulSites – Lazy Template Skeleton
+   ============================================================= */
+
+/* Placeholder while the AJAX request is in flight */
+.ss-lazy-template {
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* ---- Loading state ---------------------------------------- */
+.ss-lt-loading {
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+/* ---- Skeleton root ---------------------------------------- */
+.ss-lt-skeleton {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+/* ---- Text lines ------------------------------------------- */
+.ss-lt-skeleton__lines {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ---- Card row --------------------------------------------- */
+.ss-lt-skeleton__cards {
+    display: flex;
+    gap: 14px;
+    flex: 1;
+}
+
+.ss-lt-skeleton__card {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #ebebeb;
+}
+
+/* Thumbnail (16:9) */
+.ss-lt-skeleton__thumb {
+    width: 100%;
+    padding-top: 56.25%;
+    flex-shrink: 0;
+}
+
+.ss-lt-skeleton__body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+/* ---- Shared shimmer line ---------------------------------- */
+.ss-lt-skeleton__line,
+.ss-lt-skeleton__thumb {
+    border-radius: 4px;
+    height: 12px;
+    background: linear-gradient(
+        90deg,
+        #ebebeb 25%,
+        #d6d6d6 50%,
+        #ebebeb 75%
+    );
+    background-size: 400% 100%;
+    animation: ss-lt-shimmer 1.4s ease-in-out infinite;
+}
+
+.ss-lt-skeleton__thumb {
+    height: unset; /* height is set via padding-top trick */
+}
+
+/* Stagger animation delays for cards */
+.ss-lt-skeleton__card:nth-child(2) .ss-lt-skeleton__thumb,
+.ss-lt-skeleton__card:nth-child(2) .ss-lt-skeleton__line {
+    animation-delay: 0.1s;
+}
+.ss-lt-skeleton__card:nth-child(3) .ss-lt-skeleton__thumb,
+.ss-lt-skeleton__card:nth-child(3) .ss-lt-skeleton__line {
+    animation-delay: 0.2s;
+}
+
+/* Vary line widths inside body */
+.ss-lt-skeleton__body .ss-lt-skeleton__line:nth-child(2) {
+    width: 70%;
+}
+
+@keyframes ss-lt-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+/* ---- Loaded content --------------------------------------- */
+.ss-lt-content {
+    animation: ss-lt-fadein 0.35s ease-out;
+}
+
+@keyframes ss-lt-fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+    .ss-lt-skeleton__line,
+    .ss-lt-skeleton__thumb {
+        animation: none;
+        background: #e0e0e0;
+    }
+    .ss-lt-content {
+        animation: none;
+    }
+}
