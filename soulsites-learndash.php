@@ -28,6 +28,10 @@ define( 'SOULSITES_LEARNDASH_URL', plugin_dir_url( __FILE__ ) );
 require_once SOULSITES_LEARNDASH_PATH . 'includes/class-settings-page.php';
 SoulSites\Settings_Page::get_instance();
 
+// Lazy Template shortcode – runs always so shortcodes in saved content are never broken.
+require_once SOULSITES_LEARNDASH_PATH . 'includes/class-lazy-template.php';
+SoulSites\Lazy_Template::get_instance();
+
 // ACF Auto-Tag – läuft unabhängig von Elementor, benötigt nur ACF + LearnDash.
 // Wird immer initialisiert wenn ACF und LearnDash aktiv sind, damit acf/render_field_settings
 // die Checkbox in den Feld-Einstellungen anzeigt. Der globale Toggle steuert nur die
@@ -314,29 +318,53 @@ final class SoulSites_LearnDash_Elementor {
 	 * Enqueue frontend assets (CSS/JS) – only outside the Elementor editor.
 	 */
 	public function enqueue_frontend_assets() {
-		if ( ! \SoulSites\Settings_Page::get_option( 'enable_lazy_slider' ) ) {
-			return;
-		}
-
 		// Never load inside the Elementor editor iframe.
-		if ( isset( $_GET['elementor-preview'] ) ) {
+		if ( isset( $_GET['elementor-preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			return;
 		}
 
-		wp_enqueue_style(
-			'soulsites-lazy-slider',
-			SOULSITES_LEARNDASH_URL . 'assets/css/lazy-slider.css',
-			[],
-			SOULSITES_LEARNDASH_VERSION
-		);
+		if ( \SoulSites\Settings_Page::get_option( 'enable_lazy_slider' ) ) {
+			wp_enqueue_style(
+				'soulsites-lazy-slider',
+				SOULSITES_LEARNDASH_URL . 'assets/css/lazy-slider.css',
+				[],
+				SOULSITES_LEARNDASH_VERSION
+			);
 
-		wp_enqueue_script(
-			'soulsites-lazy-slider',
-			SOULSITES_LEARNDASH_URL . 'assets/js/lazy-slider.js',
-			[ 'jquery', 'elementor-frontend' ],
-			SOULSITES_LEARNDASH_VERSION,
-			true
-		);
+			wp_enqueue_script(
+				'soulsites-lazy-slider',
+				SOULSITES_LEARNDASH_URL . 'assets/js/lazy-slider.js',
+				[ 'jquery', 'elementor-frontend' ],
+				SOULSITES_LEARNDASH_VERSION,
+				true
+			);
+		}
+
+		if ( \SoulSites\Settings_Page::get_option( 'enable_lazy_template' ) ) {
+			wp_enqueue_style(
+				'soulsites-lazy-template',
+				SOULSITES_LEARNDASH_URL . 'assets/css/lazy-template.css',
+				[],
+				SOULSITES_LEARNDASH_VERSION
+			);
+
+			wp_enqueue_script(
+				'soulsites-lazy-template',
+				SOULSITES_LEARNDASH_URL . 'assets/js/lazy-template.js',
+				[ 'jquery' ],
+				SOULSITES_LEARNDASH_VERSION,
+				true
+			);
+
+			wp_localize_script(
+				'soulsites-lazy-template',
+				'SsLazyTemplate',
+				[
+					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+					'nonce'   => wp_create_nonce( 'ss_lazy_template' ),
+				]
+			);
+		}
 	}
 
 	/**
