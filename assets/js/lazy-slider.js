@@ -103,9 +103,19 @@
         }, { rootMargin: '300px 0px' });
 
         handler.runReadyTrigger = function ($scope) {
-            var el = $scope[0];
+            // Elementor calls runReadyTrigger from several internal code paths
+            // (e.g. frontend-modules for newly inserted content) and the
+            // argument is sometimes a jQuery object, sometimes a plain DOM
+            // element.  Reading $scope.data() on a non-jQuery scope throws
+            // and aborts the entire init pipeline – which is what caused
+            // subsequent loop items in lazy-loaded templates to stay empty.
+            var el = ($scope && $scope.jquery) ? $scope[0] : $scope;
+            if (!el || el.nodeType !== 1) {
+                return originalRunReadyTrigger($scope);
+            }
 
-            if (!isLazyWidgetType($scope.data('widget_type'))) {
+            var widgetType = el.getAttribute('data-widget_type');
+            if (!isLazyWidgetType(widgetType)) {
                 return originalRunReadyTrigger($scope);
             }
 
@@ -115,9 +125,12 @@
                 return originalRunReadyTrigger($scope);
             }
 
-            // Defer: skip Swiper init entirely until in viewport
+            // Defer: skip Swiper init entirely until in viewport.  The
+            // observer callback eventually calls originalRunReadyTrigger, so
+            // store a jQuery wrapper to match Elementor's expected signature.
+            var $jqScope = ($scope && $scope.jquery) ? $scope : jQuery(el);
             injectSkeleton(el);
-            pending.set(el, { $scope: $scope });
+            pending.set(el, { $scope: $jqScope });
             observer.observe(el);
         };
     });
