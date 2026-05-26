@@ -234,13 +234,35 @@
         function run() {
             if (!window.elementorFrontend || !elementorFrontend.elementsHandler) return;
 
-            // Process elements in DOM order (outer → inner) so sections and
-            // columns are ready before the widgets inside them initialise.
             jQuery(container).find('.elementor-element').each(function () {
-                // Clear any deferred-flag set by the lazy-slider feature so
-                // carousels inside this template initialise immediately.
-                delete this.dataset.ssLazyDone;
+                // Set ssLazyDone = '1' BEFORE calling runReadyTrigger.
+                //
+                // If lazy-slider.js is also active it patches runReadyTrigger
+                // globally: for loop-carousel/loop-slider widgets it normally
+                // re-defers initialisation until the element enters the viewport.
+                // That second deferral is wrong here – the template was just
+                // loaded because the user scrolled near it, so we want Swiper
+                // to fire right now, not wait for another IntersectionObserver.
+                //
+                // The lazy-slider patch short-circuits when ssLazyDone === '1':
+                //   if (el.dataset.ssLazyDone || isNearViewport(el)) {
+                //       return originalRunReadyTrigger($scope);   // ← direct
+                //   }
+                // Setting the flag therefore bypasses the re-deferral entirely.
+                this.dataset.ssLazyDone = '1';
                 elementorFrontend.elementsHandler.runReadyTrigger(jQuery(this));
+            });
+
+            // Force every Swiper inside the new content to recalculate its
+            // slide dimensions after one more render pass.  Swiper reads
+            // the container width on init; if the browser hadn't finished
+            // layout when runReadyTrigger fired, update() corrects that.
+            requestAnimationFrame(function () {
+                container.querySelectorAll('.swiper, .swiper-container, .elementor-loop-container').forEach(function (c) {
+                    if (c.swiper && typeof c.swiper.update === 'function') {
+                        c.swiper.update();
+                    }
+                });
             });
         }
 
