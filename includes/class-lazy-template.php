@@ -77,7 +77,9 @@ class Lazy_Template {
 	}
 
 	/**
-	 * AJAX handler – validates the request and returns rendered template HTML.
+	 * AJAX handler – validates the request and returns rendered template HTML
+	 * together with any CSS assets that Elementor enqueued during rendering but
+	 * would normally only reach the browser through wp_head().
 	 */
 	public function ajax_load_template() {
 		$template_id = absint( $_POST['template_id'] ?? 0 );
@@ -104,9 +106,59 @@ class Lazy_Template {
 			wp_send_json_error( [ 'code' => 'elementor_inactive' ], 500 );
 		}
 
+		// Snapshot of already-processed/queued handles so we only return what
+		// Elementor adds during rendering (not the whole page's stylesheet list).
+		global $wp_styles;
+		$handles_before = array_flip(
+			array_merge( $wp_styles->done, $wp_styles->queue )
+		);
+
 		$html = \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $template_id, true );
 
-		wp_send_json_success( [ 'html' => $html ] );
+		// Collect CSS assets that were freshly enqueued during rendering.
+		$css_assets = [];
+		$all_handles = array_unique( array_merge( $wp_styles->done, $wp_styles->queue ) );
+
+		foreach ( $all_handles as $handle ) {
+			if ( isset( $handles_before[ $handle ] ) ) {
+				continue; // Was already on the page before we started rendering.
+			}
+
+			$style = $wp_styles->registered[ $handle ] ?? null;
+			if ( ! $style ) {
+				continue;
+			}
+
+			$asset = [];
+
+			// External stylesheet URL (Elementor stores CSS as files in uploads/elementor/css/).
+			if ( $style->src ) {
+				$asset['url'] = $style->src;
+			}
+
+			// Inline CSS added via wp_add_inline_style() – e.g. custom CSS per element.
+			$inline_parts = [];
+			foreach ( [ 'before', 'after' ] as $position ) {
+				$chunk = $wp_styles->get_data( $handle, $position );
+				if ( ! empty( $chunk ) ) {
+					$inline_parts[] = is_array( $chunk ) ? implode( "\n", $chunk ) : (string) $chunk;
+				}
+			}
+			if ( $inline_parts ) {
+				$asset['inline'] = implode( "\n", $inline_parts );
+			}
+
+			if ( ! empty( $asset ) ) {
+				$css_assets[ $handle ] = $asset;
+			}
+		}
+
+		wp_send_json_success(
+			[
+				'html'       => $html,
+				'css_assets' => $css_assets,
+			]
+		);
 	}
 
 	// -----------------------------------------------------------------------
