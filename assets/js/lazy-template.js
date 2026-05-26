@@ -109,6 +109,12 @@
      *
      * We read those attributes and backfill elements_data before runReadyTrigger
      * is called, so Swiper and other handlers get the settings they need.
+     *
+     * Critically: Elementor expects elements_data[id] to be an object with the
+     * shape { id, elType, widgetType, settings: {...} } – NOT just the raw
+     * settings dict.  Storing the bare settings caused loop-grid widgets with
+     * a carousel display type to fall back to grid rendering (handlers read
+     * `.settings.display_type` and got undefined).
      */
     function populateElementsData(container) {
         if (!window.elementorFrontendConfig) return;
@@ -125,13 +131,21 @@
             // (e.g. the same template embedded twice on one page).
             if (elementorFrontendConfig.elements_data[id]) return;
 
-            // data-settings contains the frontend-relevant widget settings as JSON.
+            var settings = {};
             var raw = el.dataset.settings;
-            try {
-                elementorFrontendConfig.elements_data[id] = raw ? JSON.parse(raw) : {};
-            } catch (e) {
-                elementorFrontendConfig.elements_data[id] = {};
+            if (raw) {
+                try { settings = JSON.parse(raw); } catch (e) {}
             }
+
+            var elType     = el.getAttribute('data-element_type') || '';
+            var widgetType = el.getAttribute('data-widget_type')  || '';
+
+            elementorFrontendConfig.elements_data[id] = {
+                id:         id,
+                elType:     elType || (widgetType ? 'widget' : ''),
+                widgetType: widgetType,
+                settings:   settings
+            };
         });
     }
 
@@ -178,17 +192,12 @@
         //    start fetching the stylesheets as early as possible.
         injectCssAssets(cssAssets);
 
-        // 2. Parse the HTML, extracting <script> tags so they can be re-executed
-        //    after the content is in the DOM (innerHTML does not execute scripts).
-        var tmp = document.createElement('div');
-        tmp.innerHTML = html;
-
-        var scripts = Array.from(tmp.querySelectorAll('script'));
-        scripts.forEach(function (s) { s.parentNode.removeChild(s); });
-
+        // 2. Parse the HTML into a detached wrapper.  Scripts placed via
+        //    innerHTML do NOT auto-execute, so we'll walk them after insertion
+        //    and re-execute only the ones that should run.
         var wrapper = document.createElement('div');
         wrapper.className = 'ss-lt-content';
-        wrapper.innerHTML = tmp.innerHTML;
+        wrapper.innerHTML = html;
 
         // 3. Backfill elementorFrontendConfig.elements_data from data-settings
         //    attributes *before* the wrapper is in the live DOM (and before
@@ -198,18 +207,45 @@
         // 4. Swap placeholder for the real content.
         placeholder.parentNode.replaceChild(wrapper, placeholder);
 
-        // 5. Re-execute scripts in document order so inline scripts that depend
-        //    on the DOM being present (e.g. custom JS in the template) work.
-        scripts.forEach(function (old) {
+        // 5. Re-execute scripts in-place.
+        //
+        //    Critically: do NOT move scripts to <head>.  Elementor's loop
+        //    widgets (and other modules) embed non-executable template/data
+        //    blocks (e.g. <script type="text/template">) that other JS reads
+        //    by querying inside the widget element.  Moving them to <head>
+        //    detaches them from that lookup and breaks slide hydration so
+        //    only the one server-rendered slide remains.
+        //
+        //    For each <script> we replace the inert (innerHTML-parsed) node
+        //    with a freshly-created equivalent in the same position:
+        //      - Executable scripts (no type / text/javascript / module): run.
+        //      - Non-executable types (template, json, x-loop-data, …):
+        //        copy as-is so other JS can still find them by selector.
+        Array.from(wrapper.querySelectorAll('script')).forEach(function (old) {
+            var type = (old.type || '').toLowerCase();
+            var isExecutable = type === ''
+                || type === 'text/javascript'
+                || type === 'application/javascript'
+                || type === 'module';
+
             var s = document.createElement('script');
             if (old.src) {
                 s.src   = old.src;
-                s.async = false; // preserve execution order
+                if (isExecutable) s.async = false; // preserve execution order
             } else {
                 s.textContent = old.textContent;
             }
             if (old.type) s.type = old.type;
-            document.head.appendChild(s);
+            // Copy any other attributes that might matter for the script
+            // (id, data-*, integrity, crossorigin, nonce, …).
+            for (var i = 0; i < old.attributes.length; i++) {
+                var attr = old.attributes[i];
+                if (attr.name === 'src' || attr.name === 'type') continue;
+                s.setAttribute(attr.name, attr.value);
+            }
+
+            // Replace at the original location – preserves widget context.
+            old.parentNode.replaceChild(s, old);
         });
 
         // 6. Trigger Elementor widget initialisation (Swiper, loop-grid, etc.).
