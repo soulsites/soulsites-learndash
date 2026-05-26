@@ -69,9 +69,10 @@ class Lazy_Template {
 		$height = sanitize_text_field( $atts['height'] );
 
 		return sprintf(
-			'<div class="ss-lazy-template" data-template-id="%d" data-nonce="%s" style="min-height:%s" aria-busy="true"></div>',
+			'<div class="ss-lazy-template" data-template-id="%d" data-nonce="%s" data-context-id="%d" style="min-height:%s" aria-busy="true"></div>',
 			$template_id,
 			esc_attr( $nonce ),
+			get_the_ID(),
 			esc_attr( $height )
 		);
 	}
@@ -106,6 +107,23 @@ class Lazy_Template {
 			wp_send_json_error( [ 'code' => 'elementor_inactive' ], 500 );
 		}
 
+		// In admin-ajax.php, WordPress does not call wp() so $wp_query and $post
+		// are uninitialised.  Elementor's loop widgets build their own WP_Query,
+		// but some pre_get_posts filters (including our own purchase filter) may
+		// read global state.  Restoring the context of the page the shortcode
+		// lives on gives the render the same environment as a normal page load.
+		$context_id   = absint( $_POST['context_id'] ?? 0 );
+		$saved_post   = $GLOBALS['post']       ?? null;
+		$saved_query  = $GLOBALS['wp_query']   ?? null;
+
+		if ( $context_id ) {
+			$context_post = get_post( $context_id );
+			if ( $context_post ) {
+				$GLOBALS['post'] = $context_post;
+				setup_postdata( $context_post );
+			}
+		}
+
 		// Snapshot of already-processed/queued handles so we only return what
 		// Elementor adds during rendering (not the whole page's stylesheet list).
 		global $wp_styles;
@@ -114,6 +132,11 @@ class Lazy_Template {
 		);
 
 		$html = \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $template_id, true );
+
+		// Restore global post state.
+		$GLOBALS['post']     = $saved_post;
+		$GLOBALS['wp_query'] = $saved_query;
+		wp_reset_postdata();
 
 		// Collect CSS assets that were freshly enqueued during rendering.
 		$css_assets = [];

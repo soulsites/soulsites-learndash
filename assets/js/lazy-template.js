@@ -151,6 +151,9 @@
         fd.append('action',      'ss_load_lazy_template');
         fd.append('template_id', el.dataset.templateId);
         fd.append('nonce',       cfg.nonce);
+        // Pass the page context so the server-side WP_Query sees the correct
+        // global post (e.g. for context-aware filters / dynamic tags).
+        fd.append('context_id',  el.dataset.contextId || '0');
 
         fetch(cfg.ajaxUrl, { method: 'POST', body: fd })
             .then(function (r) {
@@ -210,7 +213,15 @@
         });
 
         // 6. Trigger Elementor widget initialisation (Swiper, loop-grid, etc.).
-        initElementor(wrapper);
+        //
+        // We defer to the NEXT animation frame so the browser completes the
+        // layout pass for the newly-injected content first.  Swiper reads the
+        // container's pixel width to calculate how many slides fit; if we call
+        // runReadyTrigger synchronously (width still 0 / unresolved), Swiper
+        // falls back to slidesPerView = 1 regardless of the configured value.
+        requestAnimationFrame(function () {
+            initElementor(wrapper);
+        });
     }
 
     // -------------------------------------------------------------------------
