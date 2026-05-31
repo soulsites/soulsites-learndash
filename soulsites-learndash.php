@@ -32,6 +32,12 @@ SoulSites\Settings_Page::get_instance();
 require_once SOULSITES_LEARNDASH_PATH . 'includes/class-lazy-template.php';
 SoulSites\Lazy_Template::get_instance();
 
+// ACF Migration – läuft nur im Admin, benötigt kein Elementor/LearnDash.
+require_once SOULSITES_LEARNDASH_PATH . 'includes/class-acf-migration.php';
+add_action( 'admin_init', function () {
+	\SoulSites\ACF_Migration::get_instance();
+} );
+
 // ACF Auto-Tag – läuft unabhängig von Elementor, benötigt nur ACF + LearnDash.
 // Wird immer initialisiert wenn ACF und LearnDash aktiv sind, damit acf/render_field_settings
 // die Checkbox in den Feld-Einstellungen anzeigt. Der globale Toggle steuert nur die
