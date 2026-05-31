@@ -175,7 +175,7 @@ class Settings_Page {
 	}
 
 	/**
-	 * Enqueue CSS only on our settings page.
+	 * Enqueue CSS (and migration JS data) only on our settings page.
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
@@ -189,6 +189,22 @@ class Settings_Page {
 			SOULSITES_LEARNDASH_URL . 'assets/css/admin.css',
 			[],
 			SOULSITES_LEARNDASH_VERSION
+		);
+
+		// Inline data for the migration JS block rendered in render_page()
+		wp_add_inline_script(
+			'jquery',
+			'window.SoulsitesMigration = ' . wp_json_encode( [
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'soulsites_acf_migrate_dates' ),
+				'i18n'    => [
+					'running'       => __( 'Migration läuft …', 'soulsites-learndash' ),
+					'dryRunRunning' => __( 'Vorschau wird berechnet …', 'soulsites-learndash' ),
+					'confirm'       => __( 'Achtung: Die Migration überschreibt bestehende Werte im Zielfeld. Fortfahren?', 'soulsites-learndash' ),
+					'noFields'      => __( 'Bitte Quell- und Zielfeld auswählen.', 'soulsites-learndash' ),
+					'sameField'     => __( 'Quell- und Zielfeld dürfen nicht identisch sein.', 'soulsites-learndash' ),
+				],
+			] ) . ';'
 		);
 	}
 
@@ -622,7 +638,256 @@ class Settings_Page {
 				</div>
 
 			</form>
+
+			<?php $this->render_migration_section(); ?>
+
 		</div>
+		<?php
+	}
+
+	// -------------------------------------------------------------------------
+	// ACF Migration section (outside the settings <form>)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Render the ACF date-migration tool section.
+	 * Placed outside the settings <form> so it does not interfere with saving.
+	 */
+	private function render_migration_section() {
+		$acf_active = function_exists( 'acf_get_field_groups' );
+		$all_fields = $acf_active ? \SoulSites\ACF_Migration::get_all_fields() : [];
+
+		$post_type_labels = [
+			'sfwd-courses'       => __( 'Kurse (sfwd-courses)', 'soulsites-learndash' ),
+			'sfwd-lessons'       => __( 'Lektionen (sfwd-lessons)', 'soulsites-learndash' ),
+			'sfwd-topic'         => __( 'Themen (sfwd-topic)', 'soulsites-learndash' ),
+			'sfwd-quiz'          => __( 'Quiz (sfwd-quiz)', 'soulsites-learndash' ),
+			'sfwd-certificates'  => __( 'Zertifikate (sfwd-certificates)', 'soulsites-learndash' ),
+			'post'               => __( 'Beiträge (post)', 'soulsites-learndash' ),
+			'page'               => __( 'Seiten (page)', 'soulsites-learndash' ),
+		];
+		?>
+		<div class="soulsites-settings-section" id="soulsites-migration-section">
+			<div class="soulsites-section-header">
+				<span class="soulsites-section-icon dashicons dashicons-migrate"></span>
+				<div>
+					<h2><?php esc_html_e( 'ACF Datenmigration', 'soulsites-learndash' ); ?></h2>
+					<p><?php esc_html_e( 'Konvertiert ein ACF-Textfeld mit Datumsangaben (deutsches Format) in ein ACF-Datumsfeld (Format: JJJJMMTT).', 'soulsites-learndash' ); ?></p>
+				</div>
+			</div>
+			<div class="soulsites-section-body">
+
+				<?php if ( ! $acf_active ) : ?>
+					<p class="description soulsites-info-box" style="color:#b32d2e;">
+						<?php esc_html_e( 'Advanced Custom Fields (ACF) ist nicht aktiv. Die Migration ist daher nicht verfügbar.', 'soulsites-learndash' ); ?>
+					</p>
+				<?php elseif ( empty( $all_fields ) ) : ?>
+					<p class="description soulsites-info-box">
+						<?php esc_html_e( 'Keine ACF-Felder gefunden. Lege zuerst Feldgruppen und Felder in ACF an.', 'soulsites-learndash' ); ?>
+					</p>
+				<?php else : ?>
+
+					<p class="description soulsites-info-box">
+						<?php
+						echo wp_kses(
+							__( '<strong>Hinweis:</strong> Die Migration liest den Wert aus dem <em>Quellfeld</em>, wandelt ihn in ein Datum (Format <code>JJJJMMTT</code>) um und schreibt ihn ins <em>Zielfeld</em>. Bestehende Werte im Zielfeld werden überschrieben. Nutze die <strong>Vorschau</strong>, um das Ergebnis zuerst zu prüfen, ohne Daten zu verändern.', 'soulsites-learndash' ),
+							[ 'strong' => [], 'em' => [], 'code' => [] ]
+						);
+						?>
+					</p>
+
+					<p class="description soulsites-info-box" style="margin-top:8px;">
+						<?php
+						echo wp_kses(
+							__( '<strong>Erkannte Formate:</strong> <code>30.05.2026</code>, <code>30.5.26</code>, <code>Montag, 30. Mai 2026</code>, <code>30.Mai.2026</code>, <code>30 mai 2026</code> sowie englische Datumsangaben. Wochentage (Mo–So) und Bindestriche werden automatisch entfernt.', 'soulsites-learndash' ),
+							[ 'strong' => [], 'code' => [] ]
+						);
+						?>
+					</p>
+
+					<table class="form-table soulsites-migration-table" style="max-width:700px;">
+						<tr>
+							<th scope="row">
+								<label for="ss-migration-post-type"><?php esc_html_e( 'Post-Typ', 'soulsites-learndash' ); ?></label>
+							</th>
+							<td>
+								<select id="ss-migration-post-type" class="regular-text">
+									<?php foreach ( $post_type_labels as $slug => $label ) : ?>
+										<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="ss-migration-source"><?php esc_html_e( 'Quellfeld (Text)', 'soulsites-learndash' ); ?></label>
+							</th>
+							<td>
+								<select id="ss-migration-source" class="regular-text">
+									<option value=""><?php esc_html_e( '— Feld auswählen —', 'soulsites-learndash' ); ?></option>
+									<?php foreach ( $all_fields as $group_title => $fields ) : ?>
+										<optgroup label="<?php echo esc_attr( $group_title ); ?>">
+											<?php foreach ( $fields as $field ) : ?>
+												<option value="<?php echo esc_attr( $field['name'] ); ?>">
+													<?php echo esc_html( $field['label'] . ' (' . $field['name'] . ', ' . $field['type'] . ')' ); ?>
+												</option>
+											<?php endforeach; ?>
+										</optgroup>
+									<?php endforeach; ?>
+								</select>
+								<p class="description"><?php esc_html_e( 'Das Textfeld, das das Datum als Klartext enthält.', 'soulsites-learndash' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="ss-migration-target"><?php esc_html_e( 'Zielfeld (Datum)', 'soulsites-learndash' ); ?></label>
+							</th>
+							<td>
+								<select id="ss-migration-target" class="regular-text">
+									<option value=""><?php esc_html_e( '— Feld auswählen —', 'soulsites-learndash' ); ?></option>
+									<?php foreach ( $all_fields as $group_title => $fields ) : ?>
+										<optgroup label="<?php echo esc_attr( $group_title ); ?>">
+											<?php foreach ( $fields as $field ) : ?>
+												<option value="<?php echo esc_attr( $field['name'] ); ?>">
+													<?php echo esc_html( $field['label'] . ' (' . $field['name'] . ', ' . $field['type'] . ')' ); ?>
+												</option>
+											<?php endforeach; ?>
+										</optgroup>
+									<?php endforeach; ?>
+								</select>
+								<p class="description"><?php esc_html_e( 'Das ACF-Datumsfeld, in das der konvertierte Wert gespeichert wird.', 'soulsites-learndash' ); ?></p>
+							</td>
+						</tr>
+					</table>
+
+					<div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+						<button type="button" id="ss-migration-dry-run" class="button button-secondary">
+							<?php esc_html_e( 'Vorschau (kein Speichern)', 'soulsites-learndash' ); ?>
+						</button>
+						<button type="button" id="ss-migration-run" class="button button-primary">
+							<?php esc_html_e( 'Jetzt migrieren', 'soulsites-learndash' ); ?>
+						</button>
+						<span id="ss-migration-spinner" class="spinner" style="float:none;margin:0;visibility:hidden;"></span>
+					</div>
+
+					<div id="ss-migration-result" style="margin-top:20px;display:none;">
+						<div id="ss-migration-result-inner"></div>
+					</div>
+
+				<?php endif; ?>
+
+			</div>
+		</div>
+
+		<script>
+		(function ($) {
+			'use strict';
+			var cfg = window.SoulsitesMigration || {};
+
+			function runMigration(dryRun) {
+				var source = $('#ss-migration-source').val();
+				var target = $('#ss-migration-target').val();
+				var type   = $('#ss-migration-post-type').val();
+
+				if (!source || !target) {
+					alert(cfg.i18n.noFields);
+					return;
+				}
+				if (source === target) {
+					alert(cfg.i18n.sameField);
+					return;
+				}
+				if (!dryRun && !confirm(cfg.i18n.confirm)) {
+					return;
+				}
+
+				$('#ss-migration-spinner').css('visibility', 'visible');
+				$('#ss-migration-dry-run, #ss-migration-run').prop('disabled', true);
+				$('#ss-migration-result').hide();
+
+				$.post(cfg.ajaxUrl, {
+					action:       'soulsites_acf_migrate_dates',
+					nonce:        cfg.nonce,
+					source_field: source,
+					target_field: target,
+					post_type:    type,
+					dry_run:      dryRun ? '1' : ''
+				})
+				.done(function (res) {
+					if (!res.success) {
+						showError(res.data && res.data.message ? res.data.message : '<?php echo esc_js( __( 'Unbekannter Fehler.', 'soulsites-learndash' ) ); ?>');
+						return;
+					}
+					showResult(res.data, dryRun);
+				})
+				.fail(function (xhr) {
+					showError('<?php echo esc_js( __( 'Netzwerkfehler. Bitte Seite neu laden und erneut versuchen.', 'soulsites-learndash' ) ); ?> (' + xhr.status + ')');
+				})
+				.always(function () {
+					$('#ss-migration-spinner').css('visibility', 'hidden');
+					$('#ss-migration-dry-run, #ss-migration-run').prop('disabled', false);
+				});
+			}
+
+			function showError(msg) {
+				$('#ss-migration-result-inner').html(
+					'<div class="notice notice-error inline" style="margin:0;"><p>' + escHtml(msg) + '</p></div>'
+				);
+				$('#ss-migration-result').show();
+			}
+
+			function showResult(data, dryRun) {
+				var label = dryRun
+					? '<?php echo esc_js( __( 'Vorschau-Ergebnis (nichts gespeichert)', 'soulsites-learndash' ) ); ?>'
+					: '<?php echo esc_js( __( 'Migration abgeschlossen', 'soulsites-learndash' ) ); ?>';
+
+				var noticeClass = dryRun ? 'notice-info' : (data.failed > 0 ? 'notice-warning' : 'notice-success');
+
+				var html = '<div class="notice ' + noticeClass + ' inline" style="margin:0;">';
+				html += '<p><strong>' + escHtml(label) + '</strong></p>';
+				html += '<p>'
+					+ '✅ <?php echo esc_js( __( 'Erfolgreich', 'soulsites-learndash' ) ); ?>: <strong>' + data.success + '</strong> &nbsp;|&nbsp; '
+					+ '⏭ <?php echo esc_js( __( 'Übersprungen (leer)', 'soulsites-learndash' ) ); ?>: <strong>' + data.skipped + '</strong> &nbsp;|&nbsp; '
+					+ '❌ <?php echo esc_js( __( 'Fehlgeschlagen', 'soulsites-learndash' ) ); ?>: <strong>' + data.failed + '</strong>'
+					+ '</p>';
+
+				if (data.failed_details && data.failed_details.length > 0) {
+					html += '<p><strong><?php echo esc_js( __( 'Problematische Einträge (Datum konnte nicht erkannt werden):', 'soulsites-learndash' ) ); ?></strong></p>';
+					html += '<table style="border-collapse:collapse;width:100%;margin-top:4px;">';
+					html += '<thead><tr>'
+						+ '<th style="text-align:left;padding:4px 8px;background:#f0f0f1;border:1px solid #c3c4c7;">ID</th>'
+						+ '<th style="text-align:left;padding:4px 8px;background:#f0f0f1;border:1px solid #c3c4c7;"><?php echo esc_js( __( 'Titel', 'soulsites-learndash' ) ); ?></th>'
+						+ '<th style="text-align:left;padding:4px 8px;background:#f0f0f1;border:1px solid #c3c4c7;"><?php echo esc_js( __( 'Wert im Quellfeld', 'soulsites-learndash' ) ); ?></th>'
+						+ '</tr></thead><tbody>';
+
+					$.each(data.failed_details, function (i, row) {
+						html += '<tr>'
+							+ '<td style="padding:4px 8px;border:1px solid #c3c4c7;white-space:nowrap;">'
+								+ '<a href="' + escHtml('<?php echo esc_js( admin_url( 'post.php?action=edit&post=' ) ); ?>' + row.id) + '" target="_blank">'
+								+ escHtml(String(row.id)) + '</a></td>'
+							+ '<td style="padding:4px 8px;border:1px solid #c3c4c7;">' + escHtml(row.title) + '</td>'
+							+ '<td style="padding:4px 8px;border:1px solid #c3c4c7;font-family:monospace;">' + escHtml(row.value) + '</td>'
+							+ '</tr>';
+					});
+
+					html += '</tbody></table>';
+				}
+
+				html += '</div>';
+				$('#ss-migration-result-inner').html(html);
+				$('#ss-migration-result').show();
+				$('#ss-migration-result')[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			}
+
+			function escHtml(str) {
+				return $('<div>').text(str).html();
+			}
+
+			$('#ss-migration-dry-run').on('click', function () { runMigration(true); });
+			$('#ss-migration-run').on('click', function () { runMigration(false); });
+
+		}(jQuery));
+		</script>
 		<?php
 	}
 }
