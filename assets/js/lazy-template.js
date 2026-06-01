@@ -287,6 +287,23 @@
         // falls back to slidesPerView = 1 regardless of the configured value.
         requestAnimationFrame(function () {
             initElementor(wrapper);
+
+            // 7. Fire custom event for other plugins/scripts to hook into.
+            // Event fires on both the container and window for flexibility.
+            var event = new CustomEvent('ssLazyTemplateLoaded', {
+                detail: {
+                    container: wrapper,
+                    templateId: placeholder.dataset.templateId,
+                    timestamp: new Date().getTime()
+                },
+                bubbles: true,
+                cancelable: false
+            });
+
+            wrapper.dispatchEvent(event);
+            window.dispatchEvent(event);
+
+            console.log('[SsLazyTemplate] Content loaded, fired ssLazyTemplateLoaded event');
         });
     }
 
