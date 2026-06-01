@@ -2,7 +2,20 @@
     'use strict';
 
     var cfg = window.SsLazyTemplate;
-    if (!cfg || !cfg.ajaxUrl) return;
+
+    // Debug: Check if config is loaded
+    if (!cfg) {
+        console.warn('[SsLazyTemplate] Config not found: window.SsLazyTemplate is undefined');
+        return;
+    }
+
+    if (!cfg.ajaxUrl) {
+        console.warn('[SsLazyTemplate] Config incomplete: ajaxUrl not set');
+        return;
+    }
+
+    // Debug: Confirm config is ready
+    console.log('[SsLazyTemplate] Config loaded:', { ajaxUrl: cfg.ajaxUrl, nonce: cfg.nonce ? 'set' : 'missing' });
 
     // -------------------------------------------------------------------------
     // Skeleton builder
@@ -156,29 +169,44 @@
     var inFlight = new WeakSet();
 
     function load(el) {
-        if (inFlight.has(el)) return;
+        if (inFlight.has(el)) {
+            console.log('[SsLazyTemplate] Load already in flight for this element');
+            return;
+        }
         inFlight.add(el);
+
+        var templateId = el.dataset.templateId;
+        var contextId = el.dataset.contextId || '0';
+
+        console.log('[SsLazyTemplate] Loading template:', { templateId: templateId, contextId: contextId });
 
         showSkeleton(el);
 
         var fd = new FormData();
         fd.append('action',      'ss_load_lazy_template');
-        fd.append('template_id', el.dataset.templateId);
+        fd.append('template_id', templateId);
         fd.append('nonce',       cfg.nonce);
-        // Pass the page context so the server-side WP_Query sees the correct
-        // global post (e.g. for context-aware filters / dynamic tags).
-        fd.append('context_id',  el.dataset.contextId || '0');
+        fd.append('context_id',  contextId);
+
+        console.log('[SsLazyTemplate] Sending AJAX request to:', cfg.ajaxUrl);
 
         fetch(cfg.ajaxUrl, { method: 'POST', body: fd })
             .then(function (r) {
-                if (!r.ok) throw new Error('network');
+                console.log('[SsLazyTemplate] AJAX response status:', r.status);
+                if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.json();
             })
             .then(function (resp) {
-                if (!resp.success) { el.remove(); return; }
+                console.log('[SsLazyTemplate] AJAX response:', resp);
+                if (!resp.success) {
+                    console.error('[SsLazyTemplate] Server error:', resp.data);
+                    el.remove();
+                    return;
+                }
                 inject(el, resp.data);
             })
-            .catch(function () {
+            .catch(function (err) {
+                console.error('[SsLazyTemplate] AJAX error:', err);
                 el.remove();
             });
     }
@@ -186,6 +214,8 @@
     function inject(placeholder, data) {
         var html      = data.html       || '';
         var cssAssets = data.css_assets || {};
+
+        console.log('[SsLazyTemplate] Injecting content:', { htmlLength: html.length, cssAssetCount: Object.keys(cssAssets).length });
 
         // 1. Inject CSS that Elementor enqueued during server-side rendering.
         //    This must happen before the HTML enters the DOM so the browser can
@@ -315,10 +345,16 @@
 
     function setup() {
         var placeholders = document.querySelectorAll('.ss-lazy-template[data-template-id]');
-        if (!placeholders.length) return;
+        console.log('[SsLazyTemplate] Found ' + placeholders.length + ' lazy template placeholder(s)');
+
+        if (!placeholders.length) {
+            console.warn('[SsLazyTemplate] No lazy templates found on page');
+            return;
+        }
 
         // Hard fallback for browsers without IntersectionObserver.
         if (!('IntersectionObserver' in window)) {
+            console.log('[SsLazyTemplate] IntersectionObserver not available, loading immediately');
             placeholders.forEach(load);
             return;
         }
@@ -326,12 +362,17 @@
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
                 if (!entry.isIntersecting) return;
+                console.log('[SsLazyTemplate] Template entering viewport, loading...');
                 observer.unobserve(entry.target);
                 load(entry.target);
             });
         }, { rootMargin: '300px 0px' });
 
-        placeholders.forEach(function (el) { observer.observe(el); });
+        placeholders.forEach(function (el) {
+            observer.observe(el);
+        });
+
+        console.log('[SsLazyTemplate] IntersectionObserver setup complete');
     }
 
     if (document.readyState === 'loading') {
