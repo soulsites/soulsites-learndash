@@ -83,15 +83,33 @@ class Lazy_Template {
 	 * would normally only reach the browser through wp_head().
 	 */
 	public function ajax_load_template() {
+		// Disable nonce check for now - debug why it's failing
+		// Remove this once we understand the issue
+		define( 'SS_LAZY_DEBUG', true );
+
 		$template_id = absint( $_POST['template_id'] ?? 0 );
 		$nonce       = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
 
-		// Verify nonce. For logged-in users, nonce is mandatory.
-		// For logged-out users (e.g. incognito mode), allow the request
-		// if template is public. Nonces can be unreliable with new sessions.
+		// Verify nonce
 		$nonce_valid = wp_verify_nonce( $nonce, 'ss_lazy_template' );
+
+		// Log for debugging
+		if ( defined( 'SS_LAZY_DEBUG' ) ) {
+			error_log( sprintf(
+				'[SS Lazy Template] AJAX called: user_id=%d, is_logged_in=%s, nonce=%s, nonce_valid=%s',
+				get_current_user_id(),
+				is_user_logged_in() ? 'yes' : 'no',
+				$nonce ? substr( $nonce, 0, 10 ) . '...' : 'empty',
+				$nonce_valid ? 'yes' : 'no'
+			) );
+		}
+
+		// Only enforce nonce for logged-in users
 		if ( is_user_logged_in() && ! $nonce_valid ) {
-			wp_send_json_error( [ 'code' => 'invalid_nonce' ], 403 );
+			wp_send_json_error( [
+				'code'    => 'invalid_nonce',
+				'message' => 'Nonce validation failed for logged-in user',
+			], 403 );
 		}
 
 		if ( ! $template_id ) {
