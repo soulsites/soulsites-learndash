@@ -115,6 +115,7 @@ class Settings_Page {
 			'enable_widget_progress_bar'          => 1,
 			'enable_widget_course_content'        => 1,
 			'enable_widget_acf_repeater'          => 1,
+			'enable_widget_lazy_template'         => 1,
 			// Query Filter
 			'enable_query_course_purchase'        => 1,
 			'enable_query_tutor_courses'          => 1,
@@ -526,6 +527,11 @@ class Settings_Page {
 							'enable_widget_acf_repeater',
 							__( 'ACF Repeater Liste', 'soulsites-learndash' ),
 							__( 'Liest ein ACF-Repeater-Feld aus und zeigt dessen Einträge als Liste an. Feldschlüssel für Titel, Beschreibung und Link sind im Widget frei konfigurierbar.', 'soulsites-learndash' )
+						);
+						$this->render_checkbox(
+							'enable_widget_lazy_template',
+							__( 'Lazy Template', 'soulsites-learndash' ),
+							__( 'Lädt Elementor-Templates lazy (per AJAX), wenn der Benutzer in ihre Nähe scrollt. Mit Einstellungen für Min-Height und Breakpoints. Erfordert aktivierte "Lazy Template" Performance-Option.', 'soulsites-learndash' )
 						);
 					}
 				);
