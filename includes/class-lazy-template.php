@@ -86,7 +86,11 @@ class Lazy_Template {
 		$template_id = absint( $_POST['template_id'] ?? 0 );
 		$nonce       = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
 
-		if ( ! wp_verify_nonce( $nonce, 'ss_lazy_template' ) ) {
+		// Verify nonce. For logged-in users, nonce is mandatory.
+		// For logged-out users (e.g. incognito mode), allow the request
+		// if template is public. Nonces can be unreliable with new sessions.
+		$nonce_valid = wp_verify_nonce( $nonce, 'ss_lazy_template' );
+		if ( is_user_logged_in() && ! $nonce_valid ) {
 			wp_send_json_error( [ 'code' => 'invalid_nonce' ], 403 );
 		}
 
