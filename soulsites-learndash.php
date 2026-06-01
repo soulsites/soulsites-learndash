@@ -447,6 +447,7 @@ final class SoulSites_LearnDash_Elementor {
 				'enable_widget_progress_bar'   => [ 'class-course-progress-bar.php', 'SoulSites\Widgets\Course_Progress_Bar' ],
 				'enable_widget_course_content' => [ 'class-course-content.php',      'SoulSites\Widgets\Course_Content' ],
 				'enable_widget_acf_repeater'   => [ 'class-acf-repeater.php',        'SoulSites\Widgets\ACF_Repeater' ],
+				'enable_widget_lazy_template'  => [ 'class-lazy-template.php',       'SoulSites\Widgets\Lazy_Template' ],
 			];
 
 			foreach ( $widget_map as $setting => [ $file, $class ] ) {
