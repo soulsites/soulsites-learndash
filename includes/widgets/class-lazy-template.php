@@ -215,13 +215,11 @@ class Lazy_Template extends Widget_Base {
 			$min_height = $settings['min_height']['size'] . $settings['min_height']['unit'];
 		}
 
-		$nonce = wp_create_nonce( 'ss_lazy_template' );
 		$css_classes = ! empty( $settings['css_classes'] ) ? sanitize_html_class( $settings['css_classes'] ) : '';
 
 		?>
 		<div class="ss-lazy-template <?php echo esc_attr( $css_classes ); ?>"
 			data-template-id="<?php echo esc_attr( $template_id ); ?>"
-			data-nonce="<?php echo esc_attr( $nonce ); ?>"
 			data-context-id="<?php echo esc_attr( get_the_ID() ); ?>"
 			style="min-height:<?php echo esc_attr( $min_height ); ?>;"
 			aria-busy="true">
